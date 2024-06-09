@@ -8,8 +8,6 @@ app = FastAPI(title=Settings.PROJECT_NAME, version=Settings.PROJECT_VERSION)
 # TODO: connect jira and bitbucket
 # TODO: write short README.md
 
-#ATBBvJBPPmp3EdZx6CgPmbCmBLBs85C28A58
-
 
 @app.get("/")
 async def root():
