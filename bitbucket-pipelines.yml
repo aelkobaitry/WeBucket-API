@@ -31,7 +31,7 @@ pipelines:
             - ./setup-poetry.sh
             - poetry install
             - poetry run ruff check
-            - black --check .
+            - poetry run black --check .
       - step:
           name: Test
           caches:
