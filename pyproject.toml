@@ -29,4 +29,6 @@ line-length = 100
 
 [tool.ruff.pydocstyle]
 convention = "google"
+
+[tool.ruff.pycodestyle]
 max-doc-length = 100
