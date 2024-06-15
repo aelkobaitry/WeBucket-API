@@ -3,28 +3,44 @@
 #  This template allows you to validate your python code.
 #  The workflow allows running tests and code linting on the default branch.
 
-image: python:3.8
+image: python:3.11
+
+definitions:
+  caches:
+    poetry-cache:
+      key:
+        files:
+          - poetry.lock
+      path: .venv
+    poetry-cli-cache:
+      key:
+        files:
+          - bitbucket-pipelines.yml
+      path: /opt/poetry
 
 pipelines:
   default:
     - parallel:
       - step:
+          name: 'QA'
+          caches:
+            - poetry-cache
+            - poetry-cli-cache
+          script:
+            - pipe: atlassian/poetry-cli-setup:0.2.2
+            - ./setup-poetry.sh
+            - poetry install
+            - poetry run ruff check
+            - black --check .
+      - step:
           name: Test
           caches:
             - pip
           script:
-            - if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-            - pip install pytest
-            - pytest -v tests/* --junitxml=test-reports/report.xml
-      - step:
-          name: Lint code
-          script:
-            # Enforce style consistency across Python projects https://flake8.pycqa.org
-            - pip install flake8
-            - flake8 . --extend-exclude=dist,build --show-source --statistics
+            - echo "Will run pytest"
       - step:
           name: Deploy to test
           deployment: test
           # trigger: manual  # Uncomment to make this a manual deployment.
           script:
-            - echo "Deploying to test environment"
+            - echo "Deploying to environment"

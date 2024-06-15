@@ -11,8 +11,22 @@ fastapi = "^0.111.0"
 sqlmodel = "^0.0.19"
 sqlalchemy = "^2.0.30"
 black = "^24.4.2"
+ruff = "^0.4.9"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+exclude = '/(\.git|\.venv|__pycache__)/'
+
+[tool.ruff]
+select = ["E", "W", "F", "C90", "I", "D", "A", "B", "N", "YTT", "C4", "PT", "PTH", "ERA", "RUF"]
+exclude = ['__pycache__', '.git', '.venv']
+line-length = 100
+
+[tool.ruff.pydocstyle]
+convention = "google"
+max-doc-length = 100
