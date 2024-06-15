@@ -23,12 +23,12 @@ line-length = 100
 exclude = '/(\.git|\.venv|__pycache__)/'
 
 [tool.ruff]
-select = ["E", "W", "F", "C90", "I", "D", "A", "B", "N", "YTT", "C4", "PT", "PTH", "ERA", "RUF"]
+lint.select = ["E", "W", "F", "C90", "I", "D", "A", "B", "N", "YTT", "C4", "PT", "PTH", "ERA", "RUF"]
 exclude = ['__pycache__', '.git', '.venv']
 line-length = 100
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.ruff.pycodestyle]
+[tool.ruff.lint.pycodestyle]
 max-doc-length = 100
