@@ -16,7 +16,7 @@ class UserChecklistLink(SQLModel, table=True):
 class User(SQLModel, table=True):
     """A generic user model."""
 
-    id: uuid.UUID = Field(default=uuid.uuid4(), primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: str
     email: str
     password: str
@@ -29,7 +29,7 @@ class User(SQLModel, table=True):
 class Checklist(SQLModel, table=True):
     """A generic checklist model."""
 
-    id: uuid.UUID = Field(default=uuid.uuid4(), primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
     created_at: datetime = Field(default=datetime.now())
@@ -43,7 +43,7 @@ class Checklist(SQLModel, table=True):
 class Item(SQLModel, table=True):
     """A generic item model."""
 
-    id: uuid.UUID = Field(default=uuid.uuid4(), primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
     created_at: datetime = Field(default=datetime.now())
