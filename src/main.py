@@ -5,7 +5,7 @@ from typing import Dict
 from uuid import UUID
 
 from config import Settings
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from schema import Checklist, Item, User
 from sqlalchemy.orm import Session
 from sqlmodel import SQLModel, create_engine
@@ -60,6 +60,11 @@ async def add_user(
     db_session: Session = Depends(get_db_session),
 ) -> str:
     """Add a new user to the database."""
+    if db_session.query(User).filter(User.username == username).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with username: {username} already exists.",
+        )
     new_user = User(username=username, email=email, password=password)
     db_session.add(new_user)
     db_session.commit()
@@ -74,7 +79,8 @@ async def get_user(
     user = db_session.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(
-            status_code=404, detail=f"User with username: {username} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with username: {username} not found.",
         )
     return user
 
@@ -99,7 +105,8 @@ async def get_checklists_for_user(
     user = db_session.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(
-            status_code=404, detail=f"User with username: {username} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with username: {username} not found.",
         )
     return user.checklists
 
@@ -112,16 +119,18 @@ async def add_user_to_checklist(
     checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
     if not checklist:
         raise HTTPException(
-            status_code=404, detail=f"Checklist with id: {checklist_id} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checklist with id: {checklist_id} not found.",
         )
     user = db_session.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(
-            status_code=404, detail=f"User with username: {username} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with username: {username} not found.",
         )
     if user in checklist.users:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Username: {username} already in checklist: {checklist.title}.",
         )
     checklist.users.append(user)
@@ -139,7 +148,8 @@ async def get_checklist_info(
     )
     if not checklist:
         raise HTTPException(
-            status_code=404, detail=f"Checklist with id: {checklist_id} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checklist with id: {checklist_id} not found.",
         )
     return checklist
 
@@ -154,7 +164,8 @@ async def add_item_to_checklist(
     )
     if not checklist:
         raise HTTPException(
-            status_code=404, detail=f"Checklist with id: {checklist_id} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checklist with id: {checklist_id} not found.",
         )
     new_item = Item(title=item_title, checklist_id=checklist.id, checklist=checklist)
     checklist.items.append(new_item)
@@ -172,6 +183,7 @@ async def get_items_for_checklist(
     )
     if not checklist:
         raise HTTPException(
-            status_code=404, detail=f"Checklist with id: {checklist_id} not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checklist with id: {checklist_id} not found.",
         )
     return checklist.items
