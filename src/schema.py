@@ -19,7 +19,7 @@ class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: str
     email: str
-    password: str
+    hashed_password: str
     created_at: datetime = Field(default=datetime.now())
     checklists: list["Checklist"] = Relationship(
         back_populates="users", link_model=UserChecklistLink
