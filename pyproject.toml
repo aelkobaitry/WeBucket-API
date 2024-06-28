@@ -12,6 +12,8 @@ sqlmodel = "^0.0.19"
 sqlalchemy = "^2.0.30"
 black = "^24.4.2"
 ruff = "^0.4.9"
+pyjwt = "^2.8.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 
 
 [build-system]
