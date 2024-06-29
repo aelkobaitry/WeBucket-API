@@ -54,3 +54,4 @@ class Item(SQLModel, table=True):
     rating_user2: int = Field(default=5)
     comment_user1: str | None = Field(default=None)
     comment_user2: str | None = Field(default=None)
+    complete: bool = Field(default=False)
