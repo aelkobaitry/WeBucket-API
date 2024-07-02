@@ -3,13 +3,14 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from config import app, get_db_session, pwd_context
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
-from schema import User
 from sqlmodel import Session
+
+from src.config import app, get_db_session, pwd_context
+from src.schema import User
 
 # openssl rand -hex 32
 SECRET_KEY = "45781253ad135938709c470a6b1f19a899965d6861fa05b5f15018c27780f310"
