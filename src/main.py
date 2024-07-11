@@ -3,11 +3,12 @@
 from typing import Dict
 from uuid import UUID
 
-from auth import get_current_active_user
-from config import app, get_db_session, init_db, pwd_context
 from fastapi import Depends, HTTPException, status
-from schema import Checklist, Item, User
 from sqlmodel import Session
+
+from src.auth import get_current_active_user
+from src.config import app, get_db_session, init_db, pwd_context
+from src.schema import Checklist, Item, User
 
 # fastapi dev main.py
 
@@ -42,7 +43,7 @@ async def add_user(
     email: str,
     password: str,
     db_session: Session = Depends(get_db_session),
-) -> str:
+) -> User:
     """Add a new user to the database."""
     if db_session.query(User).filter(User.username == username).first():
         raise HTTPException(
@@ -59,7 +60,8 @@ async def add_user(
     )
     db_session.add(new_user)
     db_session.commit()
-    return f"Successfully added new user with username: {username} and email: {email}"
+    db_session.refresh(new_user)
+    return new_user
 
 
 @app.post("/api/v1/create_checklist")
