@@ -41,3 +41,6 @@ max-doc-length = 100
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+addopts = [
+    "-v",
+]

@@ -34,6 +34,7 @@ class Checklist(SQLModel, table=True):
     description: str | None = Field(default=None)
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
+    owner_id: uuid.UUID
     users: list[User] = Relationship(
         back_populates="checklists", link_model=UserChecklistLink
     )
