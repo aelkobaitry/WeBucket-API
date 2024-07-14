@@ -32,7 +32,7 @@ async def ping() -> Dict[str, str]:
 
 
 @app.get("/api/v1/auth/current_user", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+async def read_users_me(current_user: User = Depends(get_current_active_user)) -> User:
     """Get the current logged in user."""
     return current_user
 
@@ -66,15 +66,22 @@ async def add_user(
 
 @app.post("/api/v1/create_checklist")
 async def create_checklist(
-    checklist_title: str,
+    title: str,
+    description: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> str:
-    """Add a new checklist to the database for a user by username."""
-    checklist = Checklist(title=checklist_title, users=[current_user])
-    db_session.add(checklist)
+) -> Checklist:
+    """Add a new checklist to the database for a user."""
+    new_checklist = Checklist(
+        title=title,
+        description=description,
+        owner_id=current_user.id,
+        users=[current_user],
+    )
+    db_session.add(new_checklist)
     db_session.commit()
-    return f"Successfully added new checklist with title: {checklist.title} and for user: {current_user.username}"
+    db_session.refresh(new_checklist)
+    return new_checklist
 
 
 @app.get("/api/v1/get_checklists_for_user")
@@ -86,27 +93,35 @@ async def get_checklists_for_user(
     return current_user.checklists
 
 
-@app.get("/api/v1/add_user_to_checklist")
+@app.patch("/api/v1/add_user_to_checklist")
 async def add_user_to_checklist(
     checklist_id: str,
+    add_user_id: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> str:
+) -> Checklist:
     """Add a user to a checklist by checklist id."""
     checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
+    add_user = db_session.query(User).filter(User.id == add_user_id).first()
     if not checklist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Checklist with id: {checklist_id} not found.",
         )
-    if current_user in checklist.users:
+    if not add_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Username: {current_user.username} already in checklist: {checklist.title}.",
+            detail=f"User with id: {add_user_id} not found.",
         )
-    checklist.users.append(current_user)
+    if add_user in checklist.users:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Username: {add_user.username} already in checklist: {checklist.title}.",
+        )
+    checklist.users.append(add_user)
     db_session.commit()
-    return f"Successfully added user: {current_user.username} to checklist: {checklist.title}"
+    db_session.refresh(checklist)
+    return checklist
 
 
 @app.get("/api/v1/get_checklist")
@@ -127,7 +142,7 @@ async def get_checklist(
     return checklist
 
 
-@app.get("/api/v1/add_item_to_checklist")
+@app.patch("/api/v1/add_item_to_checklist")
 async def add_item_to_checklist(
     checklist_id: str,
     item_title: str,
