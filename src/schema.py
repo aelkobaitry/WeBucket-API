@@ -56,3 +56,16 @@ class Item(SQLModel, table=True):
     comment_user1: str | None = Field(default=None)
     comment_user2: str | None = Field(default=None)
     complete: bool = Field(default=False)
+
+
+class ItemUpdate(SQLModel):
+    """A generic item model for updating."""
+
+    title: str | None = None
+    description: str | None = None
+    updated_at: datetime | None = None
+    rating_user1: int | None = None
+    rating_user2: int | None = None
+    comment_user1: str | None = None
+    comment_user2: str | None = None
+    complete: bool | None = None

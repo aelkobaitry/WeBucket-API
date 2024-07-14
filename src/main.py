@@ -7,7 +7,7 @@ from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
-from src.schema import Checklist, Item, User
+from src.schema import Checklist, Item, ItemUpdate, User
 
 # fastapi dev main.py
 
@@ -174,3 +174,24 @@ async def get_items_for_checklist(
             detail=f"Checklist with id: {checklist_id} not found.",
         )
     return checklist.items
+
+
+@app.patch("/api/v1/update_item")
+async def update_item(
+    item_id: str,
+    item_update: ItemUpdate,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> Item:
+    """Update an item with optional fields."""
+    db_item = db_session.get(Item, item_id)
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+        )
+    item_data = item_update.model_dump(exclude_unset=True)
+    db_item.sqlmodel_update(item_data)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item

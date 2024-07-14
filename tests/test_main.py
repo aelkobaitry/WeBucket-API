@@ -4,7 +4,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from src.schema import Checklist, User
+from src.schema import Checklist, Item, User
 
 
 def test_ping(client: TestClient):
@@ -298,10 +298,6 @@ def test_get_items_in_checklist_successfully(
         "/api/v1/add_item_to_checklist",
         params={"checklist_id": checklist_id, "title": "First Item"},
     )
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "Second Item"},
-    )
     payload = {"checklist_id": checklist_id}
 
     # Act
@@ -311,9 +307,37 @@ def test_get_items_in_checklist_successfully(
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert len(data) == 2
-    assert data[0]["title"] == "First Item"
-    assert data[0]["checklist_id"] == str(checklist_id)
-    assert data[0]["description"] is None
-    assert data[0]["rating_user1"] == 5
-    assert data[0]["rating_user2"] == 5
-    assert data[0]["complete"] is False
+    assert data[1]["title"] == "First Item"
+    assert data[1]["checklist_id"] == str(checklist_id)
+    assert data[1]["description"] is None
+    assert data[1]["rating_user1"] == 5
+    assert data[1]["rating_user2"] == 5
+    assert data[1]["complete"] is False
+
+
+def test_update_item_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint successfully."""
+    # Arrange
+    item_id = str(two_users[0].checklists[0].items[0].id)
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    query = {
+        "item_id": item_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == str(item_id)
+    assert data["title"] == payload["title"]
+    assert data["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    assert str(database_item.id) == data["id"]
+    assert database_item.title == payload["title"]
+    assert database_item.description == payload["description"]
