@@ -1,7 +1,6 @@
 """Main FastAPI module file with endpoints."""
 
 from typing import Dict
-from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlmodel import Session
@@ -124,16 +123,14 @@ async def add_user_to_checklist(
     return checklist
 
 
-@app.get("/api/v1/get_checklist")
+@app.get("/api/v1/checklist/{checklist_id}")
 async def get_checklist(
     checklist_id: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ) -> Checklist:
     """Get all checklist info by checklist id."""
-    checklist = (
-        db_session.query(Checklist).filter(Checklist.id == UUID(checklist_id)).first()
-    )
+    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
     if not checklist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -142,26 +139,25 @@ async def get_checklist(
     return checklist
 
 
-@app.patch("/api/v1/add_item_to_checklist")
+@app.post("/api/v1/add_item_to_checklist")
 async def add_item_to_checklist(
     checklist_id: str,
-    item_title: str,
+    title: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> str:
+) -> Item:
     """Add an item to a checklist by checklist id."""
-    checklist = (
-        db_session.query(Checklist).filter(Checklist.id == UUID(checklist_id)).first()
-    )
+    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
     if not checklist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Checklist with id: {checklist_id} not found.",
         )
-    new_item = Item(title=item_title, checklist_id=checklist.id, checklist=checklist)
-    checklist.items.append(new_item)
+    new_item = Item(title=title, checklist_id=checklist.id, checklist=checklist)
+    db_session.add(new_item)
     db_session.commit()
-    return f"Successfully added item: {item_title} to checklist: {checklist.title}"
+    db_session.refresh(new_item)
+    return new_item
 
 
 @app.get("/api/v1/get_items_for_checklist")
@@ -171,9 +167,7 @@ async def get_items_for_checklist(
     current_user: User = Depends(get_current_active_user),
 ) -> list[Item]:
     """Get all items for a checklist by checklist id."""
-    checklist = (
-        db_session.query(Checklist).filter(Checklist.id == UUID(checklist_id)).first()
-    )
+    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
     if not checklist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
