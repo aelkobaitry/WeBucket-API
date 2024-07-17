@@ -154,6 +154,8 @@ def test_add_user_to_checklist(
 
     checklist = session.query(Checklist).filter(Checklist.id == checklist_id).first()
     assert len(checklist.users) == 2
-    assert checklist.users[1].id == two_users[1].id
+    assert two_users[0].id in [user.id for user in checklist.users]
+    assert two_users[1].id in [user.id for user in checklist.users]
 
+    assert len(two_users[0].checklists) == 1
     assert len(two_users[1].checklists) == 1
