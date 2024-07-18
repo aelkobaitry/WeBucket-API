@@ -158,3 +158,162 @@ def test_add_user_to_checklist(
 
     assert len(two_users[0].checklists) == 1
     assert len(two_users[1].checklists) == 1
+
+
+def test_add_user_checklist_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add user to checklist endpoint with a non-existing checklist."""
+    # Arrange
+    checklist_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"checklist_id": checklist_id, "add_user_id": str(two_users[1].id)}
+
+    # Act
+    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+
+
+def test_add_user_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add user to checklist endpoint with a non-existing user."""
+    # Arrange
+    checklist_id = two_users[0].checklists[0].id
+    bad_user_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"checklist_id": checklist_id, "add_user_id": bad_user_id}
+
+    # Act
+    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"User with id: {bad_user_id} not found."
+
+
+def test_add_user_to_checklist_already_added(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add user to checklist endpoint with a user already added."""
+    # Arrange
+    checklist_id = two_users[0].checklists[0].id
+    payload = {"checklist_id": checklist_id, "add_user_id": two_users[0].id}
+
+    # Act
+    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert (
+        data["detail"]
+        == f"Username: {two_users[0].username} already in checklist: {two_users[0].checklists[0].title}."
+    )
+
+
+def test_get_checklist_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the get checklist endpoint successfully."""
+    # Arrange
+    checklist_id = two_users[0].checklists[0].id
+
+    # Act
+    response = client.get(f"/api/v1/checklist/{checklist_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["title"] == "First Checklist"
+    assert data["description"] == "Generic description"
+    assert data["owner_id"] == str(two_users[0].id)
+
+
+def test_get_checklist_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the get checklist endpoint with a non-existing checklist."""
+    # Arrange
+    checklist_id = "12345678-1234-1234-1234-123456789abc"
+
+    # Act
+    response = client.get(f"/api/v1/checklist/{checklist_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+
+
+def test_add_item_to_checklist_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add item to checklist endpoint successfully."""
+    # Arrange
+    checklist_id = str(two_users[0].checklists[0].id)
+    payload = {"checklist_id": checklist_id, "title": "First Item"}
+
+    # Act
+    response = client.post("/api/v1/add_item_to_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["title"] == "First Item"
+    assert data["checklist_id"] == checklist_id
+    assert data["description"] is None
+    assert data["rating_user1"] == 5
+    assert data["rating_user2"] == 5
+    assert data["complete"] is False
+
+
+def test_add_item_to_checklist_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add item to checklist endpoint with a non-existing checklist."""
+    # Arrange
+    checklist_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"checklist_id": checklist_id, "title": "First Item"}
+
+    # Act
+    response = client.post("/api/v1/add_item_to_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+
+
+def test_get_items_in_checklist_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the get items in checklist endpoint successfully."""
+    # Arrange
+    checklist_id = two_users[0].checklists[0].id
+    client.post(
+        "/api/v1/add_item_to_checklist",
+        params={"checklist_id": checklist_id, "title": "First Item"},
+    )
+    client.post(
+        "/api/v1/add_item_to_checklist",
+        params={"checklist_id": checklist_id, "title": "Second Item"},
+    )
+    payload = {"checklist_id": checklist_id}
+
+    # Act
+    response = client.get("/api/v1/get_items_for_checklist", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert len(data) == 2
+    assert data[0]["title"] == "First Item"
+    assert data[0]["checklist_id"] == str(checklist_id)
+    assert data[0]["description"] is None
+    assert data[0]["rating_user1"] == 5
+    assert data[0]["rating_user2"] == 5
+    assert data[0]["complete"] is False
