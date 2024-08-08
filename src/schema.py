@@ -26,6 +26,13 @@ class User(SQLModel, table=True):
     )
 
 
+class UserUpdate(SQLModel):
+    """A generic item model for updating."""
+
+    username: str | None = None
+    email: str | None = None
+
+
 class Checklist(SQLModel, table=True):
     """A generic checklist model."""
 
@@ -39,6 +46,12 @@ class Checklist(SQLModel, table=True):
         back_populates="checklists", link_model=UserChecklistLink
     )
     items: list["Item"] = Relationship(back_populates="checklist")
+
+
+class ChecklistUpdate(SQLModel):
+    title: str | None = None
+    description: str | None = None
+    updated_at: datetime = Field(default=datetime.now())
 
 
 class Item(SQLModel, table=True):

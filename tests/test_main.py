@@ -294,10 +294,20 @@ def test_get_items_in_checklist_successfully(
     """Test the get items in checklist endpoint successfully."""
     # Arrange
     checklist_id = two_users[0].checklists[0].id
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "First Item"},
+
+    item = Item(
+        title="First Item",
+        checklist_id=checklist_id,
+        description=None,
+        rating_user1=5,
+        rating_user2=5,
+        complete=False,
     )
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+
     payload = {"checklist_id": checklist_id}
 
     # Act
@@ -315,11 +325,33 @@ def test_get_items_in_checklist_successfully(
     assert data[1]["complete"] is False
 
 
+def test_update_item_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a non-existing item."""
+    # Arrange
+    item_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    query = {
+        "item_id": item_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Item with id: {item_id} not found."
+
+
 def test_update_item_successfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
     """Test update item endpoint successfully."""
     # Arrange
+    checklist = two_users[0].checklists[0]
     item_id = str(two_users[0].checklists[0].items[0].id)
     payload = {"title": "First item change", "description": "changing the description."}
 
@@ -341,3 +373,71 @@ def test_update_item_successfully(
     assert str(database_item.id) == data["id"]
     assert database_item.title == payload["title"]
     assert database_item.description == payload["description"]
+    assert database_item.checklist_id == checklist.id
+
+
+def test_update_user_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update user endpoint successfully."""
+
+    # Arrange
+    user_id = str(two_users[0].id)
+    payload = {"username": "updated_yoda", "email": "updated_yoda@example.com"}
+
+    query = {
+        "user_id": user_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_user", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == user_id
+    assert data["username"] == payload["username"]
+    assert data["email"] == payload["email"]
+
+    database_user = session.query(User).filter(User.id == user_id).first()
+    assert str(database_user.id) == data["id"]
+    assert database_user.username == payload["username"]
+    assert database_user.email == payload["email"]
+
+
+def test_update_checklist_succesfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update checklist endpoint successfully."""
+
+    # Arrange
+    checklist_id = str(two_users[0].checklists[0].id)
+    original_updated_at = two_users[0].checklists[0].updated_at
+    payload = {
+        "title": "Updated Checklist Title",
+        "description": "Updated description of the checklist.",
+    }
+
+    query = {
+        "checklist_id": checklist_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_checklist", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == checklist_id
+    assert data["title"] == payload["title"]
+    assert data["description"] == payload["description"]
+
+    # Verify the checklist was updated in the database
+    database_checklist = (
+        session.query(Checklist).filter(Checklist.id == checklist_id).first()
+    )
+    assert str(database_checklist.id) == data["id"]
+    assert database_checklist.title == payload["title"]
+    assert database_checklist.description == payload["description"]
+    assert database_checklist.updated_at > original_updated_at
+    assert database_checklist.owner_id == two_users[0].id
