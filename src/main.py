@@ -214,6 +214,7 @@ async def update_user(
             detail=f"User with id: {user_id} not found.",
         )
     user_data = user_update.model_dump(exclude_unset=True)
+    if "password" in user_data:user_data["hashed_password"] = pwd_context.hash(user_data.pop("password"))
     db_user.sqlmodel_update(user_data)
     db_session.add(db_user)
     db_session.commit()

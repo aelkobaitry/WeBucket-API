@@ -31,6 +31,7 @@ class UserUpdate(SQLModel):
 
     username: str | None = None
     email: str | None = None
+    hashed_password: str | None = None 
 
 
 class Checklist(SQLModel, table=True):
@@ -76,7 +77,6 @@ class ItemUpdate(SQLModel):
 
     title: str | None = None
     description: str | None = None
-    updated_at: datetime | None = None
     rating_user1: int | None = None
     rating_user2: int | None = None
     comment_user1: str | None = None
