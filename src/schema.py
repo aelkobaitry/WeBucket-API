@@ -19,7 +19,7 @@ class User(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     username: str
     email: str
-    password: str
+    hashed_password: str
     created_at: datetime = Field(default=datetime.now())
     checklists: list["Checklist"] = Relationship(
         back_populates="users", link_model=UserChecklistLink
@@ -34,6 +34,7 @@ class Checklist(SQLModel, table=True):
     description: str | None = Field(default=None)
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
+    owner_id: uuid.UUID
     users: list[User] = Relationship(
         back_populates="checklists", link_model=UserChecklistLink
     )
@@ -54,3 +55,4 @@ class Item(SQLModel, table=True):
     rating_user2: int = Field(default=5)
     comment_user1: str | None = Field(default=None)
     comment_user2: str | None = Field(default=None)
+    complete: bool = Field(default=False)
