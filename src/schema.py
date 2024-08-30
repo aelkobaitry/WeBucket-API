@@ -31,7 +31,7 @@ class UserUpdate(SQLModel):
 
     username: str | None = None
     email: str | None = None
-    hashed_password: str | None = None 
+    password: str | None = None 
 
 
 class Checklist(SQLModel, table=True):
@@ -52,7 +52,6 @@ class Checklist(SQLModel, table=True):
 class ChecklistUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
-    updated_at: datetime = Field(default=datetime.now())
 
 
 class Item(SQLModel, table=True):
