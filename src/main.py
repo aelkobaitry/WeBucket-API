@@ -1,5 +1,6 @@
 """Main FastAPI module file with endpoints."""
 
+from datetime import datetime
 from typing import Dict
 
 from fastapi import Depends, HTTPException, status
@@ -7,7 +8,7 @@ from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
-from src.schema import Checklist, Item, User
+from src.schema import Checklist, ChecklistUpdate, Item, ItemUpdate, User, UserUpdate
 
 # fastapi dev main.py
 
@@ -174,3 +175,72 @@ async def get_items_for_checklist(
             detail=f"Checklist with id: {checklist_id} not found.",
         )
     return checklist.items
+
+
+@app.patch("/api/v1/update_item")
+async def update_item(
+    item_id: str,
+    item_update: ItemUpdate,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> Item:
+    """Update an item with optional fields."""
+    db_item = db_session.get(Item, item_id)
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Item with id: {item_id} not found.",
+        )
+    item_data = item_update.model_dump(exclude_unset=True)
+    db_item.sqlmodel_update(item_data)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item
+
+
+@app.patch("/api/v1/update_user")
+async def update_user(
+    user_id: str,
+    user_update: UserUpdate,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """Update a user with optional fields."""
+    db_user = db_session.get(User, user_id)
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id: {user_id} not found.",
+        )
+    user_data = user_update.model_dump(exclude_unset=True)
+    if "password" in user_data:
+        user_data["hashed_password"] = pwd_context.hash(user_data.pop("password"))
+    db_user.sqlmodel_update(user_data)
+    db_session.add(db_user)
+    db_session.commit()
+    db_session.refresh(db_user)
+    return db_user
+
+
+@app.patch("/api/v1/update_checklist")
+async def update_checklist(
+    checklist_id: str,
+    checklist_update: ChecklistUpdate,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> Checklist:
+    """Update a checklist with optional fields."""
+    db_checklist = db_session.get(Checklist, checklist_id)
+    if not db_checklist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Checklist with id: {checklist_id} not found.",
+        )
+    checklist_data = checklist_update.model_dump(exclude_unset=True)
+    db_checklist.sqlmodel_update(checklist_data)
+    db_checklist.updated_at = datetime.now()
+    db_session.add(db_checklist)
+    db_session.commit()
+    db_session.refresh(db_checklist)
+    return db_checklist

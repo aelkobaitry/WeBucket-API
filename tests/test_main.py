@@ -4,7 +4,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from src.schema import Checklist, User
+from src.schema import Checklist, Item, User
 
 
 def test_ping(client: TestClient):
@@ -294,14 +294,20 @@ def test_get_items_in_checklist_successfully(
     """Test the get items in checklist endpoint successfully."""
     # Arrange
     checklist_id = two_users[0].checklists[0].id
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "First Item"},
+
+    item = Item(
+        title="First Item",
+        checklist_id=checklist_id,
+        description=None,
+        rating_user1=5,
+        rating_user2=5,
+        complete=False,
     )
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "Second Item"},
-    )
+
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+
     payload = {"checklist_id": checklist_id}
 
     # Act
@@ -311,9 +317,175 @@ def test_get_items_in_checklist_successfully(
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert len(data) == 2
-    assert data[0]["title"] == "First Item"
-    assert data[0]["checklist_id"] == str(checklist_id)
-    assert data[0]["description"] is None
-    assert data[0]["rating_user1"] == 5
-    assert data[0]["rating_user2"] == 5
-    assert data[0]["complete"] is False
+    assert data[1]["title"] == "First Item"
+    assert data[1]["checklist_id"] == str(checklist_id)
+    assert data[1]["description"] is None
+    assert data[1]["rating_user1"] == 5
+    assert data[1]["rating_user2"] == 5
+    assert data[1]["complete"] is False
+
+
+def test_update_item_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a non-existing item."""
+    # Arrange
+    item_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    query = {
+        "item_id": item_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Item with id: {item_id} not found."
+
+
+def test_update_item_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint successfully."""
+    # Arrange
+    checklist = two_users[0].checklists[0]
+    item_id = str(two_users[0].checklists[0].items[0].id)
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    query = {
+        "item_id": item_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == str(item_id)
+    assert data["title"] == payload["title"]
+    assert data["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    assert str(database_item.id) == data["id"]
+    assert database_item.title == payload["title"]
+    assert database_item.description == payload["description"]
+    assert database_item.checklist_id == checklist.id
+
+
+def test_update_user_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update user endpoint with a non-existing user."""
+    # Arrange
+    user_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"username": "nonexistent_user", "email": "nonexistent_user@example.com"}
+
+    query = {
+        "user_id": user_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_user", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"User with id: {user_id} not found."
+
+
+def test_update_user_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update user endpoint successfully."""
+    # Arrange
+    user_id = str(two_users[0].id)
+    payload = {
+        "username": "updated_yoda",
+        "email": "updated_yoda@example.com",
+        "hashed_password": "newpassword123",
+    }
+
+    query = {
+        "user_id": user_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_user", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == user_id
+    assert data["username"] == payload["username"]
+    assert data["email"] == payload["email"]
+    assert data["hashed_password"] is not None
+
+    database_user = session.query(User).filter(User.id == user_id).first()
+    assert str(database_user.id) == data["id"]
+    assert database_user.username == payload["username"]
+    assert database_user.email == payload["email"]
+    assert database_user.hashed_password is not None
+
+
+def test_update_checklist_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update checklist endpoint with a non-existing checklist."""
+    # Arrange
+    checklist_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {
+        "title": "Nonexistent Checklist Title",
+        "description": "Trying to update a non-existent checklist.",
+    }
+
+    query = {
+        "checklist_id": checklist_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_checklist", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+
+
+def test_update_checklist_succesfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update checklist endpoint successfully."""
+    # Arrange
+    checklist_id = str(two_users[0].checklists[0].id)
+    original_updated_at = two_users[0].checklists[0].updated_at
+    payload = {
+        "title": "Updated Checklist Title",
+        "description": "Updated description of the checklist.",
+    }
+
+    query = {
+        "checklist_id": checklist_id,
+    }
+
+    # Act
+    response = client.patch("/api/v1/update_checklist", params=query, json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == checklist_id
+    assert data["title"] == payload["title"]
+    assert data["description"] == payload["description"]
+
+    database_checklist = (
+        session.query(Checklist).filter(Checklist.id == checklist_id).first()
+    )
+    assert str(database_checklist.id) == data["id"]
+    assert database_checklist.title == payload["title"]
+    assert database_checklist.description == payload["description"]
+    assert database_checklist.updated_at > original_updated_at
+    assert database_checklist.owner_id == two_users[0].id
