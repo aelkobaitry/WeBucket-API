@@ -31,7 +31,7 @@ class UserUpdate(SQLModel):
 
     username: str | None = None
     email: str | None = None
-    password: str | None = None 
+    password: str | None = None
 
 
 class Checklist(SQLModel, table=True):
@@ -50,6 +50,8 @@ class Checklist(SQLModel, table=True):
 
 
 class ChecklistUpdate(SQLModel):
+    """A generic checklist model for updating."""
+
     title: str | None = None
     description: str | None = None
 

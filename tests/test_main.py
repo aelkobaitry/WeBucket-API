@@ -4,7 +4,6 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from src.config import app, pwd_context
 from src.schema import Checklist, Item, User
 
 
@@ -381,9 +380,8 @@ def test_update_user_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
     """Test update user endpoint with a non-existing user."""
-    
     # Arrange
-    user_id = "12345678-1234-1234-1234-123456789abc"  
+    user_id = "12345678-1234-1234-1234-123456789abc"
     payload = {"username": "nonexistent_user", "email": "nonexistent_user@example.com"}
 
     query = {
@@ -403,10 +401,13 @@ def test_update_user_successfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
     """Test update user endpoint successfully."""
-
     # Arrange
     user_id = str(two_users[0].id)
-    payload = {"username": "updated_yoda", "email": "updated_yoda@example.com","hashed_password": "newpassword123" }
+    payload = {
+        "username": "updated_yoda",
+        "email": "updated_yoda@example.com",
+        "hashed_password": "newpassword123",
+    }
 
     query = {
         "user_id": user_id,
@@ -427,16 +428,15 @@ def test_update_user_successfully(
     assert str(database_user.id) == data["id"]
     assert database_user.username == payload["username"]
     assert database_user.email == payload["email"]
-    assert database_user.hashed_password is not None 
+    assert database_user.hashed_password is not None
 
 
 def test_update_checklist_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
     """Test update checklist endpoint with a non-existing checklist."""
-
     # Arrange
-    checklist_id = "12345678-1234-1234-1234-123456789abc"  
+    checklist_id = "12345678-1234-1234-1234-123456789abc"
     payload = {
         "title": "Nonexistent Checklist Title",
         "description": "Trying to update a non-existent checklist.",
@@ -459,7 +459,6 @@ def test_update_checklist_succesfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
     """Test update checklist endpoint successfully."""
-
     # Arrange
     checklist_id = str(two_users[0].checklists[0].id)
     original_updated_at = two_users[0].checklists[0].updated_at
@@ -482,7 +481,9 @@ def test_update_checklist_succesfully(
     assert data["title"] == payload["title"]
     assert data["description"] == payload["description"]
 
-    database_checklist = session.query(Checklist).filter(Checklist.id == checklist_id).first()
+    database_checklist = (
+        session.query(Checklist).filter(Checklist.id == checklist_id).first()
+    )
     assert str(database_checklist.id) == data["id"]
     assert database_checklist.title == payload["title"]
     assert database_checklist.description == payload["description"]

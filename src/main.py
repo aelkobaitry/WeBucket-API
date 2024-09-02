@@ -1,14 +1,14 @@
 """Main FastAPI module file with endpoints."""
 
-from typing import Dict
 from datetime import datetime
+from typing import Dict
 
 from fastapi import Depends, HTTPException, status
 from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
-from src.schema import Checklist, Item, ItemUpdate, User, UserUpdate, ChecklistUpdate
+from src.schema import Checklist, ChecklistUpdate, Item, ItemUpdate, User, UserUpdate
 
 # fastapi dev main.py
 
@@ -214,7 +214,8 @@ async def update_user(
             detail=f"User with id: {user_id} not found.",
         )
     user_data = user_update.model_dump(exclude_unset=True)
-    if "password" in user_data:user_data["hashed_password"] = pwd_context.hash(user_data.pop("password"))
+    if "password" in user_data:
+        user_data["hashed_password"] = pwd_context.hash(user_data.pop("password"))
     db_user.sqlmodel_update(user_data)
     db_session.add(db_user)
     db_session.commit()
