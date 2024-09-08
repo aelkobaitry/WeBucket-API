@@ -94,7 +94,11 @@ def test_add_checklist_success(
 ):
     """Test the create checklist endpoint successfully."""
     # Arrange
-    payload = {"title": "My Checklist", "description": "A general description."}
+    payload = {
+        "title": "My Checklist",
+        "description": "A general description.",
+        "checklist_type": "activity",
+    }
 
     # Act
     response = client.post("/api/v1/create_checklist", params=payload)
@@ -105,6 +109,7 @@ def test_add_checklist_success(
     print(data)
     assert data["title"] == payload["title"]
     assert data["description"] == payload["description"]
+    assert data["checklist_type"] == payload["checklist_type"]
     assert data["id"] is not None
     assert data["owner_id"] == str(two_users[0].id)
 
@@ -116,6 +121,7 @@ def test_add_checklist_success(
     assert str(added_checklist.id) == data["id"]
     assert added_checklist.title == payload["title"]
     assert added_checklist.description == payload["description"]
+    assert added_checklist.checklist_type == payload["checklist_type"]
     assert added_checklist.owner_id == two_users[0].id
     assert str(added_checklist.owner_id) == data["owner_id"]
 
@@ -133,6 +139,7 @@ def test_get_checklists_for_user(
     assert len(data) == 1
     assert data[0]["title"] == "First Checklist"
     assert data[0]["description"] == "Generic description"
+    assert data[0]["checklist_type"] == "activity"
     assert data[0]["owner_id"] == str(two_users[0].id)
 
 

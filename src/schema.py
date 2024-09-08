@@ -2,6 +2,8 @@
 
 import uuid
 from datetime import datetime
+from enum import Enum
+
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -34,12 +36,20 @@ class UserUpdate(SQLModel):
     password: str | None = None
 
 
+class ChecklistType(str, Enum):
+    """A enum for checklist types."""
+    ACTIVITY = "activity"
+    MEDIA = "media"
+    FOOD = "food"
+
+
 class Checklist(SQLModel, table=True):
     """A generic checklist model."""
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
+    checklist_type: ChecklistType
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
     owner_id: uuid.UUID

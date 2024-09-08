@@ -8,7 +8,7 @@ from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
-from src.schema import Checklist, ChecklistUpdate, Item, ItemUpdate, User, UserUpdate
+from src.schema import (Checklist, ChecklistType, ChecklistUpdate, Item, ItemUpdate, User, UserUpdate)
 
 # fastapi dev main.py
 
@@ -68,6 +68,7 @@ async def add_user(
 async def create_checklist(
     title: str,
     description: str,
+    checklist_type: ChecklistType,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ) -> Checklist:
@@ -75,6 +76,7 @@ async def create_checklist(
     new_checklist = Checklist(
         title=title,
         description=description,
+        checklist_type=checklist_type,
         owner_id=current_user.id,
         users=[current_user],
     )
