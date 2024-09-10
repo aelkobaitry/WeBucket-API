@@ -8,7 +8,15 @@ from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
-from src.schema import (Checklist, ChecklistType, ChecklistUpdate, Item, ItemUpdate, User, UserUpdate)
+from src.schema import (
+    Checklist,
+    ChecklistType,
+    ChecklistUpdate,
+    Item,
+    ItemUpdate,
+    User,
+    UserUpdate,
+)
 
 # fastapi dev main.py
 

@@ -8,7 +8,7 @@ from sqlmodel.pool import StaticPool
 from src.auth import get_current_active_user
 from src.config import get_db_session
 from src.main import app
-from src.schema import Checklist, Item, User
+from src.schema import Checklist, ChecklistType, Item, User
 
 
 @pytest.fixture(name="session")
@@ -37,6 +37,7 @@ def add_two_users(session: Session) -> tuple[User, User]:
     checklist1 = Checklist(
         title="First Checklist",
         description="Generic description",
+        checklist_type=ChecklistType.activity,
         owner_id=user1.id,
         users=[user1],
     )

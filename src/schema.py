@@ -4,7 +4,6 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -38,9 +37,10 @@ class UserUpdate(SQLModel):
 
 class ChecklistType(str, Enum):
     """A enum for checklist types."""
-    ACTIVITY = "activity"
-    MEDIA = "media"
-    FOOD = "food"
+
+    activity = "activity"
+    media = "media"
+    food = "food"
 
 
 class Checklist(SQLModel, table=True):
