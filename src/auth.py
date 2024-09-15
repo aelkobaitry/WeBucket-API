@@ -65,7 +65,11 @@ async def get_current_active_user(
             raise credentials_exception
         token_data_username = username
     except InvalidTokenError:
-        raise credentials_exception from None
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token is expired or invalid",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
     user = db_session.query(User).filter(User.username == token_data_username).first()
     if user is None:
         raise credentials_exception
