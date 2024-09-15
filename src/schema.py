@@ -2,14 +2,15 @@
 
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from sqlmodel import Field, Relationship, SQLModel
 
 
-class UserChecklistLink(SQLModel, table=True):
-    """A link table between users and checklists."""
+class UserBucketLink(SQLModel, table=True):
+    """A link table between users and buckets."""
 
-    checklist_id: uuid.UUID = Field(foreign_key="checklist.id", primary_key=True)
+    bucket_id: uuid.UUID = Field(foreign_key="bucket.id", primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
 
 
@@ -21,8 +22,8 @@ class User(SQLModel, table=True):
     email: str
     hashed_password: str
     created_at: datetime = Field(default=datetime.now())
-    checklists: list["Checklist"] = Relationship(
-        back_populates="users", link_model=UserChecklistLink
+    buckets: list["Bucket"] = Relationship(
+        back_populates="users", link_model=UserBucketLink
     )
 
 
@@ -34,8 +35,8 @@ class UserUpdate(SQLModel):
     password: str | None = None
 
 
-class Checklist(SQLModel, table=True):
-    """A generic checklist model."""
+class Bucket(SQLModel, table=True):
+    """A generic Bucket model."""
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
@@ -44,16 +45,24 @@ class Checklist(SQLModel, table=True):
     updated_at: datetime = Field(default=datetime.now())
     owner_id: uuid.UUID
     users: list[User] = Relationship(
-        back_populates="checklists", link_model=UserChecklistLink
+        back_populates="buckets", link_model=UserBucketLink
     )
-    items: list["Item"] = Relationship(back_populates="checklist")
+    items: list["Item"] = Relationship(back_populates="bucket")
 
 
-class ChecklistUpdate(SQLModel):
-    """A generic checklist model for updating."""
+class BucketUpdate(SQLModel):
+    """A generic bucket model for updating."""
 
     title: str | None = None
     description: str | None = None
+
+
+class ItemType(str, Enum):
+    """A enum for item types."""
+
+    activity = "activity"
+    media = "media"
+    food = "food"
 
 
 class Item(SQLModel, table=True):
@@ -62,10 +71,11 @@ class Item(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
+    item_type: ItemType
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
-    checklist_id: uuid.UUID = Field(foreign_key="checklist.id")
-    checklist: Checklist = Relationship(back_populates="items")
+    bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
+    bucket: Bucket = Relationship(back_populates="items")
     rating_user1: int = Field(default=5)
     rating_user2: int = Field(default=5)
     comment_user1: str | None = Field(default=None)
