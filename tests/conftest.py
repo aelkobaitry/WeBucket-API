@@ -8,7 +8,7 @@ from sqlmodel.pool import StaticPool
 from src.auth import get_current_active_user
 from src.config import get_db_session
 from src.main import app
-from src.schema import Checklist, ChecklistType, Item, User
+from src.schema import Bucket, Item, ItemType, User
 
 
 @pytest.fixture(name="session")
@@ -34,25 +34,25 @@ def add_two_users(session: Session) -> tuple[User, User]:
     session.add(user1)
     session.add(user2)
     session.commit()
-    checklist1 = Checklist(
-        title="First Checklist",
+    bucket1 = Bucket(
+        title="First Bucket",
         description="Generic description",
-        checklist_type=ChecklistType.activity,
         owner_id=user1.id,
         users=[user1],
     )
-    session.add(checklist1)
+    session.add(bucket1)
     session.commit()
     session.refresh(user1)
     item1 = Item(
         title="firstItem",
         description="testing first item",
-        checklist=checklist1,
-        checklist_id=checklist1.id,
+        item_type=ItemType.activity,
+        bucket=bucket1,
+        bucket_id=bucket1.id,
     )
     session.add(item1)
     session.commit()
-    session.refresh(checklist1)
+    session.refresh(bucket1)
     return user1, user2
 
 

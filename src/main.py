@@ -9,10 +9,10 @@ from sqlmodel import Session
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
 from src.schema import (
-    Checklist,
-    ChecklistType,
-    ChecklistUpdate,
+    Bucket,
+    BucketUpdate,
     Item,
+    ItemType,
     ItemUpdate,
     User,
     UserUpdate,
@@ -72,119 +72,109 @@ async def add_user(
     return new_user
 
 
-@app.post("/api/v1/create_checklist")
-async def create_checklist(
+@app.post("/api/v1/create_bucket")
+async def create_bucket(
     title: str,
     description: str,
-    checklist_type: ChecklistType,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Checklist:
-    """Add a new checklist to the database for a user."""
-    new_checklist = Checklist(
+) -> Bucket:
+    """Add a new bucket to the database for a user."""
+    new_bucket = Bucket(
         title=title,
         description=description,
-        checklist_type=checklist_type,
         owner_id=current_user.id,
         users=[current_user],
     )
-    db_session.add(new_checklist)
+    db_session.add(new_bucket)
     db_session.commit()
-    db_session.refresh(new_checklist)
-    return new_checklist
+    db_session.refresh(new_bucket)
+    return new_bucket
 
 
-@app.get("/api/v1/get_checklists_for_user")
-async def get_checklists_for_user(
+@app.get("/api/v1/get_buckets_for_user")
+async def get_buckets_for_user(
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> list[Checklist]:
-    """Get all checklists for a user by username."""
-    return current_user.checklists
+) -> list[Bucket]:
+    """Get all buckets for a user by username."""
+    return current_user.buckets
 
 
-@app.patch("/api/v1/add_user_to_checklist")
-async def add_user_to_checklist(
-    checklist_id: str,
-    add_user_id: str,
+@app.patch("/api/v1/add_user_to_bucket")
+async def add_user_to_bucket(
+    bucket_id: str,
+    add_username: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Checklist:
-    """Add a user to a checklist by checklist id."""
-    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
-    add_user = db_session.query(User).filter(User.id == add_user_id).first()
-    if not checklist:
+) -> list[User]:
+    """Add a user to a bucket by bucket id."""
+    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    add_user = db_session.query(User).filter(User.username == add_username).first()
+    if not bucket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Checklist with id: {checklist_id} not found.",
+            detail=f"Bucket with id: {bucket_id} not found.",
         )
     if not add_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id: {add_user_id} not found.",
+            detail=f"User with username: {add_username} not found.",
         )
-    if add_user in checklist.users:
+    if add_user in bucket.users:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Username: {add_user.username} already in checklist: {checklist.title}.",
+            detail=f"Username: {add_user.username} already in bucket: {bucket.title}.",
         )
-    checklist.users.append(add_user)
+    bucket.users.append(add_user)
     db_session.commit()
-    db_session.refresh(checklist)
-    return checklist
+    db_session.refresh(bucket)
+    return bucket.users
 
 
-@app.get("/api/v1/checklist/{checklist_id}")
-async def get_checklist(
-    checklist_id: str,
+@app.get("/api/v1/bucket/{bucket_id}")
+async def get_bucket(
+    bucket_id: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Checklist:
-    """Get all checklist info by checklist id."""
-    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
-    if not checklist:
+) -> dict:
+    """Get all bucket info by bucket id."""
+    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    if not bucket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Checklist with id: {checklist_id} not found.",
+            detail=f"Bucket with id: {bucket_id} not found.",
         )
-    return checklist
+
+    activity = [item for item in bucket.items if item.item_type == ItemType.activity]
+    media = [item for item in bucket.items if item.item_type == ItemType.media]
+    food = [item for item in bucket.items if item.item_type == ItemType.food]
+
+    return {"activity": activity, "media": media, "food": food, "bucket": bucket}
 
 
-@app.post("/api/v1/add_item_to_checklist")
-async def add_item_to_checklist(
-    checklist_id: str,
+@app.post("/api/v1/add_item_to_bucket")
+async def add_item_to_bucket(
+    bucket_id: str,
     title: str,
+    item_type: ItemType,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ) -> Item:
-    """Add an item to a checklist by checklist id."""
-    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
-    if not checklist:
+    """Add an item to a bucket by bucket id."""
+    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    if not bucket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Checklist with id: {checklist_id} not found.",
+            detail=f"Bucket with id: {bucket_id} not found.",
         )
-    new_item = Item(title=title, checklist_id=checklist.id, checklist=checklist)
+    new_item = Item(
+        title=title, bucket_id=bucket.id, bucket=bucket, item_type=item_type
+    )
     db_session.add(new_item)
     db_session.commit()
     db_session.refresh(new_item)
     return new_item
-
-
-@app.get("/api/v1/get_items_for_checklist")
-async def get_items_for_checklist(
-    checklist_id: str,
-    db_session: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_active_user),
-) -> list[Item]:
-    """Get all items for a checklist by checklist id."""
-    checklist = db_session.query(Checklist).filter(Checklist.id == checklist_id).first()
-    if not checklist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Checklist with id: {checklist_id} not found.",
-        )
-    return checklist.items
 
 
 @app.patch("/api/v1/update_item")
@@ -233,24 +223,24 @@ async def update_user(
     return db_user
 
 
-@app.patch("/api/v1/update_checklist")
-async def update_checklist(
-    checklist_id: str,
-    checklist_update: ChecklistUpdate,
+@app.patch("/api/v1/update_bucket")
+async def update_bucket(
+    bucket_id: str,
+    bucket_update: BucketUpdate,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Checklist:
-    """Update a checklist with optional fields."""
-    db_checklist = db_session.get(Checklist, checklist_id)
-    if not db_checklist:
+) -> Bucket:
+    """Update a bucket with optional fields."""
+    db_bucket = db_session.get(Bucket, bucket_id)
+    if not db_bucket:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Checklist with id: {checklist_id} not found.",
+            detail=f"Bucket with id: {bucket_id} not found.",
         )
-    checklist_data = checklist_update.model_dump(exclude_unset=True)
-    db_checklist.sqlmodel_update(checklist_data)
-    db_checklist.updated_at = datetime.now()
-    db_session.add(db_checklist)
+    bucket_data = bucket_update.model_dump(exclude_unset=True)
+    db_bucket.sqlmodel_update(bucket_data)
+    db_bucket.updated_at = datetime.now()
+    db_session.add(db_bucket)
     db_session.commit()
-    db_session.refresh(db_checklist)
-    return db_checklist
+    db_session.refresh(db_bucket)
+    return db_bucket
