@@ -145,12 +145,42 @@ async def get_bucket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
         )
+    if current_user not in bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket: {bucket.title}.",
+        )
 
     activity = [item for item in bucket.items if item.item_type == ItemType.activity]
     media = [item for item in bucket.items if item.item_type == ItemType.media]
     food = [item for item in bucket.items if item.item_type == ItemType.food]
 
     return {"activity": activity, "media": media, "food": food, "bucket": bucket}
+
+
+@app.delete("/api/v1/delete_bucket/{bucket_id}")
+async def delete_bucket(
+    bucket_id: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> list[Bucket]:
+    """Delete a bucket by bucket id."""
+    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    if not bucket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Bucket with id: {bucket_id} not found.",
+        )
+    if bucket.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not authorized to delete bucket: {bucket.title}.",
+        )
+    for item in bucket.items:
+        db_session.delete(item)
+    db_session.delete(bucket)
+    db_session.commit()
+    return current_user.buckets
 
 
 @app.post("/api/v1/add_item_to_bucket")
@@ -167,6 +197,11 @@ async def add_item_to_bucket(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
+        )
+    if current_user not in bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket: {bucket.title}.",
         )
     new_item = Item(
         title=title, bucket_id=bucket.id, bucket=bucket, item_type=item_type
