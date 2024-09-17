@@ -506,6 +506,7 @@ def test_update_bucket_succesfully(
     payload = {
         "title": "Updated Bucket Title",
         "description": "Updated description of the bucket.",
+        "bookmark": True,
     }
 
     query = {
@@ -521,10 +522,12 @@ def test_update_bucket_succesfully(
     assert data["id"] == bucket_id
     assert data["title"] == payload["title"]
     assert data["description"] == payload["description"]
+    assert data["bookmark"] == payload["bookmark"]
 
     database_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
     assert str(database_bucket.id) == data["id"]
     assert database_bucket.title == payload["title"]
     assert database_bucket.description == payload["description"]
+    assert database_bucket.bookmark == payload["bookmark"]
     assert database_bucket.updated_at > original_updated_at
     assert database_bucket.owner_id == two_users[0].id

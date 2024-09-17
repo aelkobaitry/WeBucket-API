@@ -41,6 +41,7 @@ class Bucket(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
+    bookmark: bool = Field(default=False)
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
     owner_id: uuid.UUID
@@ -55,6 +56,7 @@ class BucketUpdate(SQLModel):
 
     title: str | None = None
     description: str | None = None
+    bookmark: bool | None = None
 
 
 class ItemType(str, Enum):
