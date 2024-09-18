@@ -78,7 +78,7 @@ async def create_bucket(
     description: str,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Bucket:
+) -> list[Bucket]:
     """Add a new bucket to the database for a user."""
     new_bucket = Bucket(
         title=title,
@@ -89,7 +89,7 @@ async def create_bucket(
     db_session.add(new_bucket)
     db_session.commit()
     db_session.refresh(new_bucket)
-    return new_bucket
+    return current_user.buckets
 
 
 @app.get("/api/v1/get_buckets_for_user")
@@ -180,6 +180,7 @@ async def delete_bucket(
         db_session.delete(item)
     db_session.delete(bucket)
     db_session.commit()
+    db_session.refresh(current_user)
     return current_user.buckets
 
 

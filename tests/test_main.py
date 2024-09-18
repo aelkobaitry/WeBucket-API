@@ -105,20 +105,20 @@ def test_add_bucket_success(
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    print(data)
-    assert data["title"] == payload["title"]
-    assert data["description"] == payload["description"]
-    assert data["id"] is not None
-    assert data["owner_id"] == str(two_users[0].id)
+    assert len(data) == 2
+    assert data[1]["title"] == payload["title"]
+    assert data[1]["description"] == payload["description"]
+    assert data[1]["id"] is not None
+    assert data[1]["owner_id"] == str(two_users[0].id)
 
     assert len(two_users[0].buckets) == 2
 
-    added_bucket = session.query(Bucket).filter(Bucket.id == data["id"]).first()
-    assert str(added_bucket.id) == data["id"]
+    added_bucket = session.query(Bucket).filter(Bucket.id == data[1]["id"]).first()
+    assert str(added_bucket.id) == data[1]["id"]
     assert added_bucket.title == payload["title"]
     assert added_bucket.description == payload["description"]
     assert added_bucket.owner_id == two_users[0].id
-    assert str(added_bucket.owner_id) == data["owner_id"]
+    assert str(added_bucket.owner_id) == data[1]["owner_id"]
 
 
 def test_get_buckets_for_user(
