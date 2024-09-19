@@ -557,13 +557,13 @@ def test_update_bucket_succesfully(
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["id"] == bucket_id
-    assert data["title"] == payload["title"]
-    assert data["description"] == payload["description"]
-    assert data["bookmark"] == payload["bookmark"]
+    assert data[0]["id"] == bucket_id
+    assert data[0]["title"] == payload["title"]
+    assert data[0]["description"] == payload["description"]
+    assert data[0]["bookmark"] == payload["bookmark"]
 
     database_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
-    assert str(database_bucket.id) == data["id"]
+    assert str(database_bucket.id) == data[0]["id"]
     assert database_bucket.title == payload["title"]
     assert database_bucket.description == payload["description"]
     assert database_bucket.bookmark == payload["bookmark"]

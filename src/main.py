@@ -275,7 +275,7 @@ async def update_bucket(
     bucket_update: BucketUpdate,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Bucket:
+) -> list[Bucket]:
     """Update a bucket with optional fields."""
     db_bucket = db_session.get(Bucket, bucket_id)
     if not db_bucket:
@@ -289,4 +289,4 @@ async def update_bucket(
     db_session.add(db_bucket)
     db_session.commit()
     db_session.refresh(db_bucket)
-    return db_bucket
+    return current_user.buckets
