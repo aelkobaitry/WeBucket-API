@@ -80,6 +80,16 @@ async def create_bucket(
     current_user: User = Depends(get_current_active_user),
 ) -> list[Bucket]:
     """Add a new bucket to the database for a user."""
+    if title == "":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bucket title cannot be empty.",
+        )
+    if len(title) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bucket title cannot exceed 50 characters.",
+        )
     new_bucket = Bucket(
         title=title,
         description=description,

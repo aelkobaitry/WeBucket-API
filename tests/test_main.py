@@ -121,6 +121,44 @@ def test_add_bucket_success(
     assert str(added_bucket.owner_id) == data[1]["owner_id"]
 
 
+def test_add_bucket_empty_title(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the create bucket endpoint with an empty title."""
+    # Arrange
+    payload = {
+        "title": "",
+        "description": "A general description.",
+    }
+
+    # Act
+    response = client.post("/api/v1/create_bucket", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data["detail"] == "Bucket title cannot be empty."
+
+
+def test_add_bucket_long_title(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the create bucket endpoint with a long title."""
+    # Arrange
+    payload = {
+        "title": "A" * 51,
+        "description": "A general description.",
+    }
+
+    # Act
+    response = client.post("/api/v1/create_bucket", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data["detail"] == "Bucket title cannot exceed 50 characters."
+
+
 def test_get_buckets_for_user(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
