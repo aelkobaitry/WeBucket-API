@@ -26,10 +26,18 @@ def session_fixture() -> Session:
 def add_two_users(session: Session) -> tuple[User, User]:
     """Adds two users to the database."""
     user1 = User(
-        username="yoda", email="user@example.com", hashed_password="password123"
+        firstname="Yoda",
+        lastname="Master",
+        username="yoda",
+        email="user@example.com",
+        hashed_password="password123",
     )
     user2 = User(
-        username="vader", email="user2@example.com", hashed_password="password"
+        firstname="Darth",
+        lastname="Vader",
+        username="vader",
+        email="user2@example.com",
+        hashed_password="password",
     )
     session.add(user1)
     session.add(user2)

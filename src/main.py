@@ -47,6 +47,8 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)) -
 
 @app.post("/api/v1/add_user")
 async def add_user(
+    firstname: str,
+    lastname: str,
     username: str,
     email: str,
     password: str,
@@ -64,7 +66,11 @@ async def add_user(
             detail=f"User with email: {email} already exists.",
         )
     new_user = User(
-        username=username, email=email, hashed_password=pwd_context.hash(password)
+        firstname=firstname,
+        lastname=lastname,
+        username=username,
+        email=email,
+        hashed_password=pwd_context.hash(password),
     )
     db_session.add(new_user)
     db_session.commit()

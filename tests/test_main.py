@@ -21,6 +21,8 @@ def test_add_user_success(client: TestClient, session: Session):
     """Test the create user endpoint successfully."""
     # Arrange
     payload = {
+        "firstname": "Chew",
+        "lastname": "Bacca",
         "username": "chewbacca",
         "email": "chewy@example.com",
         "password": "password123",
@@ -32,6 +34,8 @@ def test_add_user_success(client: TestClient, session: Session):
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
+    assert data["firstname"] == payload["firstname"]
+    assert data["lastname"] == payload["lastname"]
     assert data["username"] == payload["username"]
     assert data["email"] == payload["email"]
     assert data["id"] is not None
@@ -44,6 +48,8 @@ def test_add_user_success(client: TestClient, session: Session):
         session.query(User).filter(User.username == payload["username"]).first()
     )
     assert str(added_user.id) == data["id"]
+    assert added_user.firstname == payload["firstname"]
+    assert added_user.lastname == payload["lastname"]
     assert added_user.username == payload["username"]
     assert added_user.email == payload["email"]
     assert added_user.hashed_password is not None
@@ -53,6 +59,8 @@ def test_add_user_same_username(client: TestClient, session: Session):
     """Test the create user endpoint with a previously used username."""
     # Arrange
     payload = {
+        "firstname": "Yoda",
+        "lastname": "Master",
         "username": "yoda",
         "email": "notuser@example.com",
         "password": "password123",
@@ -75,6 +83,8 @@ def test_add_user_same_email(client: TestClient, two_users: tuple[User, User]):
     """Test the create user endpoint with a previously used email."""
     # Arrange
     payload = {
+        "firstname": "Not",
+        "lastname": "Yoda",
         "username": "notyoda",
         "email": "user@example.com",
         "password": "password123",
@@ -483,6 +493,8 @@ def test_update_user_successfully(
     # Arrange
     user_id = str(two_users[0].id)
     payload = {
+        "firstname": "Updated",
+        "lastname": "Yoda",
         "username": "updated_yoda",
         "email": "updated_yoda@example.com",
         "hashed_password": "newpassword123",
@@ -499,12 +511,16 @@ def test_update_user_successfully(
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert data["id"] == user_id
+    assert data["firstname"] == payload["firstname"]
+    assert data["lastname"] == payload["lastname"]
     assert data["username"] == payload["username"]
     assert data["email"] == payload["email"]
     assert data["hashed_password"] is not None
 
     database_user = session.query(User).filter(User.id == user_id).first()
     assert str(database_user.id) == data["id"]
+    assert database_user.firstname == payload["firstname"]
+    assert database_user.lastname == payload["lastname"]
     assert database_user.username == payload["username"]
     assert database_user.email == payload["email"]
     assert database_user.hashed_password is not None

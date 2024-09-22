@@ -18,6 +18,8 @@ class User(SQLModel, table=True):
     """A generic user model."""
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    firstname: str
+    lastname: str
     username: str
     email: str
     hashed_password: str
@@ -33,6 +35,8 @@ class UserUpdate(SQLModel):
     username: str | None = None
     email: str | None = None
     password: str | None = None
+    firstname: str | None = None
+    lastname: str | None = None
 
 
 class Bucket(SQLModel, table=True):
