@@ -1,9 +1,12 @@
 """Main FastAPI module file with endpoints."""
 
+import zipfile
 from datetime import datetime
+from io import BytesIO
 from typing import Dict
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import StatementError
 from sqlmodel import Session
 
@@ -11,15 +14,18 @@ from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
 from src.schema import (
     Bucket,
+    BucketImage,
     BucketPublicWithUsers,
     BucketUpdate,
     CreateBucket,
     CreateItem,
     CreateUser,
     Item,
+    ItemImage,
     ItemType,
     ItemUpdate,
     User,
+    UserImage,
     UserUpdate,
 )
 
@@ -88,6 +94,7 @@ async def add_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"User with email: {user.email} already exists.",
         )
+
     new_user = User(
         firstname=user.firstname,
         lastname=user.lastname,
@@ -118,6 +125,7 @@ async def create_bucket(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Bucket title cannot exceed 50 characters.",
         )
+
     new_bucket = Bucket(
         title=bucket.title,
         description=bucket.description,
@@ -125,6 +133,7 @@ async def create_bucket(
         users=[current_user],
         created_at=datetime.now(),
     )
+
     db_session.add(new_bucket)
     db_session.commit()
     db_session.refresh(new_bucket)
@@ -386,3 +395,156 @@ async def update_bucket(
     db_session.commit()
     db_session.refresh(db_bucket)
     return current_user.buckets
+
+
+@app.post("/api/v1/upload_user_image")
+async def upload_user_image(
+    file: UploadFile = File(...),
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> dict:
+    """Upload an image to a user, replacing any previous image."""
+    image_data = await file.read()
+
+    if current_user.image:
+        old_image = current_user.image[0]
+        db_session.delete(old_image)
+
+    new_image = UserImage(
+        image_data=image_data,
+        filename=file.filename,
+        content_type=file.content_type,
+        user=current_user,
+        user_id=current_user.id,
+    )
+    current_user.image = [new_image]
+    db_session.add(current_user)
+    db_session.add(new_image)
+    db_session.commit()
+    db_session.refresh(current_user)
+    return {"message": "Image uploaded successfully", "user_id": current_user.id}
+
+
+@app.get("/get_user_image/{user_id}")
+async def get_user_image(
+    user_id: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get the image of a specific user."""
+    db_user = db_session.get(User, user_id)
+    if not db_user or not db_user.image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return StreamingResponse(
+        BytesIO(db_user.image[0].image_data), media_type=db_user.image[0].content_type
+    )
+
+
+@app.post("/api/v1/upload_bucket_image")
+async def upload_bucket_image(
+    bucket_id: str,
+    file: UploadFile = File(...),
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> dict:
+    """Upload an image to a bucket, replacing any previous image."""
+    image_data = await file.read()
+    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    if not bucket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Bucket not found"
+        )
+
+    if bucket.image:
+        old_image = bucket.image[0]
+        db_session.delete(old_image)
+
+    new_image = BucketImage(
+        image_data=image_data,
+        filename=file.filename,
+        content_type=file.content_type,
+        bucket=bucket,
+        bucket_id=bucket.id,
+    )
+
+    bucket.image = [new_image]
+    db_session.add(new_image)
+    db_session.commit()
+    db_session.refresh(bucket)
+    return {"message": "Image uploaded successfully", "bucket_id": bucket.id}
+
+
+@app.get("/get_bucket_image/{bucket_id}")
+async def get_bucket_image(
+    bucket_id: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get the image of a specific bucket."""
+    bucket = db_session.get(Bucket, bucket_id)
+    if not bucket or not bucket.image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return StreamingResponse(
+        BytesIO(bucket.image[0].image_data), media_type=bucket.image[0].content_type
+    )
+
+
+@app.post("/api/v1/upload_item_image")
+async def upload_item_image(
+    item_id: str,
+    file: UploadFile = File(...),
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> dict:
+    """Upload an image to an item, ensuring a maximum of 10 images per item."""
+    image_data = await file.read()
+
+    db_item = db_session.get(Item, item_id)
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    if len(db_item.image) >= 20:
+        raise HTTPException(
+            status_code=400, detail="Maximum of 10 images allowed per item"
+        )
+
+    new_image = ItemImage(
+        image_data=image_data,
+        filename=file.filename,
+        content_type=file.content_type,
+        item=db_item,
+        item_id=db_item.id,
+    )
+
+    db_session.add(new_image)
+    db_session.commit()
+    return {"message": "Image uploaded successfully", "item_id": item_id}
+
+
+@app.get("/get_item_images/{item_id}")
+async def get_item_images(
+    item_id: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Stream all images for a specific item as a zip file."""
+    db_item = db_session.get(Item, item_id)
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if not db_item.image or len(db_item.image) == 0:
+        raise HTTPException(status_code=404, detail="No images found for this item")
+
+    zip_io = BytesIO()
+    with zipfile.ZipFile(zip_io, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for item_image in db_item.image:
+            if item_image.image_data:
+                zf.writestr(item_image.filename or "image", item_image.image_data)
+    zip_io.seek(0)
+
+    return StreamingResponse(
+        zip_io,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f"attachment; filename={item_id}_images.zip"},
+    )

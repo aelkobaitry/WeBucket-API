@@ -23,6 +23,7 @@ class User(SQLModel, table=True):
     username: str
     email: str
     hashed_password: str
+    image: list["UserImage"] = Relationship(back_populates="user")
     created_at: datetime = Field(default=datetime.now())
     buckets: list["Bucket"] = Relationship(
         back_populates="users", link_model=UserBucketLink
@@ -67,6 +68,7 @@ class Bucket(SQLModel, table=True):
     title: str
     description: str | None = Field(default=None)
     bookmark: bool = Field(default=False)
+    image: list["BucketImage"] = Relationship(back_populates="bucket")
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
     owner_id: uuid.UUID
@@ -89,6 +91,7 @@ class BucketUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
     bookmark: bool | None = None
+    image_data: bytes | None = None
 
 
 class BucketPublic(SQLModel):
@@ -124,6 +127,7 @@ class Item(SQLModel, table=True):
     title: str
     description: str | None = Field(default=None)
     location: str | None = Field(default=None)
+    image: list["ItemImage"] = Relationship(back_populates="item")
     item_type: ItemType
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
@@ -152,3 +156,36 @@ class ItemUpdate(SQLModel):
     score: float | None = None
     comment: str | None = None
     complete: bool | None = None
+
+
+class UserImage(SQLModel, table=True):
+    """A generic image model for User."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    filename: str | None = None
+    content_type: str | None = None
+    image_data: bytes | None = None
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    user: User = Relationship(back_populates="image")
+
+
+class BucketImage(SQLModel, table=True):
+    """A generic image model for Bucket."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    filename: str | None = None
+    content_type: str | None = None
+    image_data: bytes | None = None
+    bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
+    bucket: Bucket = Relationship(back_populates="image")
+
+
+class ItemImage(SQLModel, table=True):
+    """A generic image model for Items."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    filename: str | None = None
+    content_type: str | None = None
+    image_data: bytes | None = None
+    item_id: uuid.UUID = Field(foreign_key="item.id")
+    item: Item = Relationship(back_populates="image")
