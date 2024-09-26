@@ -377,17 +377,20 @@ def test_add_item_to_bucket_successfully(
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["title"] == payload["title"]
-    assert data["bucket_id"] == bucket_id
-    assert data["item_type"] == payload["item_type"]
-    assert data["description"] is None
-    assert data["rating_user1"] == 5
-    assert data["rating_user2"] == 5
-    assert data["complete"] is False
+    assert len(data) == 2
+    assert data[1]["title"] == payload["title"]
+    assert data[1]["bucket_id"] == bucket_id
+    assert data[1]["item_type"] == payload["item_type"]
+    assert data[1]["description"] is None
+    assert data[1]["rating_user1"] == 5
+    assert data[1]["rating_user2"] == 5
+    assert data[1]["complete"] is False
 
-    added_item = session.query(Item).filter(Item.id == data["id"]).first()
+    added_item = session.query(Item).filter(Item.id == data[1]["id"]).first()
+    updated_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    assert len(updated_bucket.items) == len(data)
     assert added_item is not None
-    assert str(added_item.id) == data["id"]
+    assert str(added_item.id) == data[1]["id"]
     assert added_item.title == payload["title"]
     assert str(added_item.bucket_id) == bucket_id
     assert added_item.item_type == payload["item_type"]

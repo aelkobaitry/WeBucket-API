@@ -207,7 +207,7 @@ async def add_item_to_bucket(
     item_type: ItemType,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Item:
+) -> list[Item]:
     """Add an item to a bucket by bucket id."""
     bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
     if not bucket:
@@ -226,7 +226,10 @@ async def add_item_to_bucket(
     db_session.add(new_item)
     db_session.commit()
     db_session.refresh(new_item)
-    return new_item
+    # return the list of the item type
+    bucket = db_session.query(Bucket).filter(Bucket.id == new_item.bucket_id).first()
+    items = [item for item in bucket.items if item.item_type == new_item.item_type]
+    return items
 
 
 @app.patch("/api/v1/update_item")
