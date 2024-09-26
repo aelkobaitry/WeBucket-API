@@ -235,7 +235,7 @@ async def update_item(
     item_update: ItemUpdate,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
-) -> Item:
+) -> list[Item]:
     """Update an item with optional fields."""
     db_item = db_session.get(Item, item_id)
     if not db_item:
@@ -248,7 +248,10 @@ async def update_item(
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
-    return db_item
+    # return the list of the item type
+    bucket = db_session.query(Bucket).filter(Bucket.id == db_item.bucket_id).first()
+    items = [item for item in bucket.items if item.item_type == db_item.item_type]
+    return items
 
 
 @app.patch("/api/v1/update_user")

@@ -454,12 +454,14 @@ def test_update_item_successfully(
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["id"] == str(item_id)
-    assert data["title"] == payload["title"]
-    assert data["description"] == payload["description"]
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["title"] == payload["title"]
+    assert data[0]["description"] == payload["description"]
 
     database_item = session.query(Item).filter(Item.id == item_id).first()
-    assert str(database_item.id) == data["id"]
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
     assert database_item.title == payload["title"]
     assert database_item.description == payload["description"]
     assert database_item.bucket_id == bucket.id
