@@ -417,6 +417,45 @@ def test_add_item_to_bucket_not_existing(
     assert data["detail"] == f"Bucket with id: {bucket_id} not found."
 
 
+def test_delete_item_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the delete item endpoint successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+
+    # Act
+    response = client.delete(f"/api/v1/delete_item/{item_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert len(data) == 0
+
+    item = session.query(Item).filter(Item.id == item_id).first()
+    assert item is None
+
+    updated_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(updated_bucket.items) == 0
+
+
+def test_delete_item_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the delete item endpoint with a non-existing item."""
+    # Arrange
+    item_id = "12345678-1234-1234-1234-123456789abc"
+
+    # Act
+    response = client.delete(f"/api/v1/delete_item/{item_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Item with id: {item_id} not found."
+
+
 def test_update_item_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):

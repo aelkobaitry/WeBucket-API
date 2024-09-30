@@ -30,6 +30,8 @@ class User(SQLModel, table=True):
 
 
 class CreateUser(SQLModel):
+    """A generic user model for creating."""
+
     firstname: str
     lastname: str
     username: str
@@ -119,6 +121,7 @@ class ItemUpdate(SQLModel):
 
     title: str | None = None
     description: str | None = None
+    location: str | None = None
     rating_user1: int | None = None
     rating_user2: int | None = None
     comment_user1: str | None = None

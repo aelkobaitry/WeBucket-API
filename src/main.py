@@ -231,8 +231,35 @@ async def add_item_to_bucket(
     db_session.commit()
     db_session.refresh(new_item)
     # return the list of the item type
-    bucket = db_session.query(Bucket).filter(Bucket.id == new_item.bucket_id).first()
     items = [item for item in bucket.items if item.item_type == new_item.item_type]
+    return items
+
+
+@app.delete("/api/v1/delete_item/{item_id}")
+async def delete_item(
+    item_id: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_active_user),
+) -> list[Item]:
+    """Delete an item by item id."""
+    db_item = db_session.get(Item, item_id)
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Item with id: {item_id} not found.",
+        )
+    db_item_type = db_item.item_type
+    bucket = db_session.query(Bucket).filter(Bucket.id == db_item.bucket_id).first()
+    if current_user not in bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket: {bucket.title}.",
+        )
+    db_session.delete(db_item)
+    db_session.commit()
+    db_session.refresh(bucket)
+    # return the list of the item type
+    items = [item for item in bucket.items if item.item_type == db_item_type]
     return items
 
 
