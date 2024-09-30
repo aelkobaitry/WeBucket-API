@@ -29,6 +29,14 @@ class User(SQLModel, table=True):
     )
 
 
+class CreateUser(SQLModel):
+    firstname: str
+    lastname: str
+    username: str
+    email: str
+    password: str
+
+
 class UserUpdate(SQLModel):
     """A generic item model for updating."""
 
@@ -55,6 +63,13 @@ class Bucket(SQLModel, table=True):
     items: list["Item"] = Relationship(back_populates="bucket")
 
 
+class CreateBucket(SQLModel):
+    """A generic bucket model for creating."""
+
+    title: str
+    description: str
+
+
 class BucketUpdate(SQLModel):
     """A generic bucket model for updating."""
 
@@ -77,6 +92,7 @@ class Item(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
+    location: str | None = Field(default=None)
     item_type: ItemType
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
@@ -87,6 +103,15 @@ class Item(SQLModel, table=True):
     comment_user1: str | None = Field(default=None)
     comment_user2: str | None = Field(default=None)
     complete: bool = Field(default=False)
+
+
+class CreateItem(SQLModel):
+    """A generic item model for creating."""
+
+    title: str
+    description: str | None = None
+    location: str | None = None
+    item_type: ItemType
 
 
 class ItemUpdate(SQLModel):

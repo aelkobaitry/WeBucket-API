@@ -29,7 +29,7 @@ def test_add_user_success(client: TestClient, session: Session):
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
@@ -67,7 +67,7 @@ def test_add_user_same_username(client: TestClient, session: Session):
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
@@ -91,7 +91,7 @@ def test_add_user_same_email(client: TestClient, two_users: tuple[User, User]):
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
@@ -110,7 +110,7 @@ def test_add_bucket_success(
     }
 
     # Act
-    response = client.post("/api/v1/create_bucket", params=payload)
+    response = client.post("/api/v1/create_bucket", json=payload)
     data = response.json()
 
     # Assert
@@ -142,7 +142,7 @@ def test_add_bucket_empty_title(
     }
 
     # Act
-    response = client.post("/api/v1/create_bucket", params=payload)
+    response = client.post("/api/v1/create_bucket", json=payload)
     data = response.json()
 
     # Assert
@@ -161,7 +161,7 @@ def test_add_bucket_long_title(
     }
 
     # Act
-    response = client.post("/api/v1/create_bucket", params=payload)
+    response = client.post("/api/v1/create_bucket", json=payload)
     data = response.json()
 
     # Assert
@@ -191,10 +191,10 @@ def test_add_user_to_bucket(
     """Test the add user to bucket endpoint successfully."""
     # Arrange
     bucket_id = two_users[0].buckets[0].id
-    payload = {"bucket_id": bucket_id, "add_username": two_users[1].username}
+    payload = {"add_username": two_users[1].username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_bucket", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
@@ -220,10 +220,10 @@ def test_add_user_bucket_not_existing(
     """Test the add user to bucket endpoint with a non-existing bucket."""
     # Arrange
     bucket_id = "12345678-1234-1234-1234-123456789abc"
-    payload = {"bucket_id": bucket_id, "add_username": str(two_users[1].username)}
+    payload = {"add_username": str(two_users[1].username)}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_bucket", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
@@ -238,10 +238,10 @@ def test_add_user_not_existing(
     # Arrange
     bucket_id = two_users[0].buckets[0].id
     bad_username = "thisusernamedoesnotexist"
-    payload = {"bucket_id": bucket_id, "add_username": bad_username}
+    payload = {"add_username": bad_username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_bucket", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
@@ -255,10 +255,10 @@ def test_add_user_to_bucket_already_added(
     """Test the add user to bucket endpoint with a user already added."""
     # Arrange
     bucket_id = two_users[0].buckets[0].id
-    payload = {"bucket_id": bucket_id, "add_username": two_users[0].username}
+    payload = {"add_username": two_users[0].username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_bucket", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
@@ -369,10 +369,10 @@ def test_add_item_to_bucket_successfully(
     """Test the add item to bucket endpoint successfully."""
     # Arrange
     bucket_id = str(two_users[0].buckets[0].id)
-    payload = {"bucket_id": bucket_id, "title": "First Item", "item_type": "activity"}
+    payload = {"title": "First Item", "item_type": "activity"}
 
     # Act
-    response = client.post("/api/v1/add_item_to_bucket", params=payload)
+    response = client.post(f"/api/v1/add_item_to_bucket/{bucket_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -406,10 +406,10 @@ def test_add_item_to_bucket_not_existing(
     """Test the add item to bucket endpoint with a non-existing bucket."""
     # Arrange
     bucket_id = "12345678-1234-1234-1234-123456789abc"
-    payload = {"bucket_id": bucket_id, "title": "First Item", "item_type": "activity"}
+    payload = {"title": "First Item", "item_type": "activity"}
 
     # Act
-    response = client.post("/api/v1/add_item_to_bucket", params=payload)
+    response = client.post(f"/api/v1/add_item_to_bucket/{bucket_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -425,12 +425,8 @@ def test_update_item_not_existing(
     item_id = "12345678-1234-1234-1234-123456789abc"
     payload = {"title": "First item change", "description": "changing the description."}
 
-    query = {
-        "item_id": item_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -447,12 +443,8 @@ def test_update_item_successfully(
     item_id = str(two_users[0].buckets[0].items[0].id)
     payload = {"title": "First item change", "description": "changing the description."}
 
-    query = {
-        "item_id": item_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_item", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -478,12 +470,8 @@ def test_update_user_not_existing(
     user_id = "12345678-1234-1234-1234-123456789abc"
     payload = {"username": "nonexistent_user", "email": "nonexistent_user@example.com"}
 
-    query = {
-        "user_id": user_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_user", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_user/{user_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -505,12 +493,8 @@ def test_update_user_successfully(
         "hashed_password": "newpassword123",
     }
 
-    query = {
-        "user_id": user_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_user", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_user/{user_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -542,12 +526,8 @@ def test_update_bucket_not_existing(
         "description": "Trying to update a non-existent bucket.",
     }
 
-    query = {
-        "bucket_id": bucket_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_bucket", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_bucket/{bucket_id}", json=payload)
     data = response.json()
 
     # Assert
@@ -568,12 +548,8 @@ def test_update_bucket_succesfully(
         "bookmark": True,
     }
 
-    query = {
-        "bucket_id": bucket_id,
-    }
-
     # Act
-    response = client.patch("/api/v1/update_bucket", params=query, json=payload)
+    response = client.patch(f"/api/v1/update_bucket/{bucket_id}", json=payload)
     data = response.json()
 
     # Assert

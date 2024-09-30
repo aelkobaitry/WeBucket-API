@@ -11,6 +11,9 @@ from src.config import app, get_db_session, init_db, pwd_context
 from src.schema import (
     Bucket,
     BucketUpdate,
+    CreateBucket,
+    CreateItem,
+    CreateUser,
     Item,
     ItemType,
     ItemUpdate,
@@ -47,30 +50,26 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)) -
 
 @app.post("/api/v1/add_user")
 async def add_user(
-    firstname: str,
-    lastname: str,
-    username: str,
-    email: str,
-    password: str,
+    user: CreateUser,
     db_session: Session = Depends(get_db_session),
 ) -> User:
     """Add a new user to the database."""
-    if db_session.query(User).filter(User.username == username).first():
+    if db_session.query(User).filter(User.username == user.username).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User with username: {username} already exists.",
+            detail=f"User with username: {user.username} already exists.",
         )
-    if db_session.query(User).filter(User.email == email).first():
+    if db_session.query(User).filter(User.email == user.email).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User with email: {email} already exists.",
+            detail=f"User with email: {user.email} already exists.",
         )
     new_user = User(
-        firstname=firstname,
-        lastname=lastname,
-        username=username,
-        email=email,
-        hashed_password=pwd_context.hash(password),
+        firstname=user.firstname,
+        lastname=user.lastname,
+        username=user.username,
+        email=user.email,
+        hashed_password=pwd_context.hash(user.password),
     )
     db_session.add(new_user)
     db_session.commit()
@@ -80,27 +79,27 @@ async def add_user(
 
 @app.post("/api/v1/create_bucket")
 async def create_bucket(
-    title: str,
-    description: str,
+    bucket: CreateBucket,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ) -> list[Bucket]:
     """Add a new bucket to the database for a user."""
-    if title == "":
+    if bucket.title == "":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Bucket title cannot be empty.",
         )
-    if len(title) > 50:
+    if len(bucket.title) > 50:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Bucket title cannot exceed 50 characters.",
         )
     new_bucket = Bucket(
-        title=title,
-        description=description,
+        title=bucket.title,
+        description=bucket.description,
         owner_id=current_user.id,
         users=[current_user],
+        created_at=datetime.now(),
     )
     db_session.add(new_bucket)
     db_session.commit()
@@ -117,7 +116,7 @@ async def get_buckets_for_user(
     return current_user.buckets
 
 
-@app.patch("/api/v1/add_user_to_bucket")
+@app.patch("/api/v1/add_user_to_bucket/{bucket_id}")
 async def add_user_to_bucket(
     bucket_id: str,
     add_username: str,
@@ -200,11 +199,10 @@ async def delete_bucket(
     return current_user.buckets
 
 
-@app.post("/api/v1/add_item_to_bucket")
+@app.post("/api/v1/add_item_to_bucket/{bucket_id}")
 async def add_item_to_bucket(
     bucket_id: str,
-    title: str,
-    item_type: ItemType,
+    item: CreateItem,
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
 ) -> list[Item]:
@@ -221,7 +219,13 @@ async def add_item_to_bucket(
             detail=f"User: {current_user.username} not in bucket: {bucket.title}.",
         )
     new_item = Item(
-        title=title, bucket_id=bucket.id, bucket=bucket, item_type=item_type
+        title=item.title,
+        description=item.description,
+        location=item.location,
+        created_at=datetime.now(),
+        item_type=item.item_type,
+        bucket_id=bucket.id,
+        bucket=bucket,
     )
     db_session.add(new_item)
     db_session.commit()
@@ -232,7 +236,7 @@ async def add_item_to_bucket(
     return items
 
 
-@app.patch("/api/v1/update_item")
+@app.patch("/api/v1/update_item/{item_id}")
 async def update_item(
     item_id: str,
     item_update: ItemUpdate,
@@ -257,7 +261,7 @@ async def update_item(
     return items
 
 
-@app.patch("/api/v1/update_user")
+@app.patch("/api/v1/update_user/{user_id}")
 async def update_user(
     user_id: str,
     user_update: UserUpdate,
@@ -281,7 +285,7 @@ async def update_user(
     return db_user
 
 
-@app.patch("/api/v1/update_bucket")
+@app.patch("/api/v1/update_bucket/{bucket_id}")
 async def update_bucket(
     bucket_id: str,
     bucket_update: BucketUpdate,
