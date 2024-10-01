@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 
 class UserBucketLink(SQLModel, table=True):
@@ -100,8 +100,9 @@ class Item(SQLModel, table=True):
     updated_at: datetime = Field(default=datetime.now())
     bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
     bucket: Bucket = Relationship(back_populates="items")
-    rating_user1: int = Field(default=5)
-    rating_user2: int = Field(default=5)
+    ratings: list[dict[str, str | int]] = Field(
+        default_factory=list, sa_column=Column(JSON)
+    )
     comment_user1: str | None = Field(default=None)
     comment_user2: str | None = Field(default=None)
     complete: bool = Field(default=False)
@@ -122,8 +123,7 @@ class ItemUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
     location: str | None = None
-    rating_user1: int | None = None
-    rating_user2: int | None = None
+    score: int | None = None
     comment_user1: str | None = None
     comment_user2: str | None = None
     complete: bool | None = None

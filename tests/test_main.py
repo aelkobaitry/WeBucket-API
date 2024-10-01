@@ -336,9 +336,11 @@ def test_delete_bucket_successfully(
     # Arrange
     bucket_id = two_users[0].buckets[0].id
     item_id = two_users[0].buckets[0].items[0].id
+
     # Act
     response = client.delete(f"/api/v1/delete_bucket/{bucket_id}")
     data = response.json()
+
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert len(data) == 0
@@ -382,8 +384,6 @@ def test_add_item_to_bucket_successfully(
     assert data[1]["bucket_id"] == bucket_id
     assert data[1]["item_type"] == payload["item_type"]
     assert data[1]["description"] is None
-    assert data[1]["rating_user1"] == 5
-    assert data[1]["rating_user2"] == 5
     assert data[1]["complete"] is False
 
     added_item = session.query(Item).filter(Item.id == data[1]["id"]).first()
@@ -395,8 +395,7 @@ def test_add_item_to_bucket_successfully(
     assert str(added_item.bucket_id) == bucket_id
     assert added_item.item_type == payload["item_type"]
     assert added_item.description is None
-    assert added_item.rating_user1 == 5
-    assert added_item.rating_user2 == 5
+    assert added_item.ratings == []
     assert added_item.complete is False
 
 
@@ -499,6 +498,64 @@ def test_update_item_successfully(
     assert database_item.title == payload["title"]
     assert database_item.description == payload["description"]
     assert database_item.bucket_id == bucket.id
+
+
+def test_update_item_update_rating_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with updating a rating successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    payload = {"score": 2, "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.description == payload["description"]
+    assert database_item.ratings == [{"username": two_users[0].username, "score": 2}]
+
+
+def test_update_item_new_rating_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a new rating successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    item = session.query(Item).filter(Item.id == item_id).first()
+    item.ratings = []
+    session.add(item)
+    session.commit()
+    payload = {"score": 10, "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.description == payload["description"]
+    assert database_item.ratings == [{"username": two_users[0].username, "score": 10}]
 
 
 def test_update_user_not_existing(

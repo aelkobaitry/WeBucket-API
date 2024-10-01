@@ -277,14 +277,40 @@ async def update_item(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Item with id: {item_id} not found.",
         )
+    if current_user not in db_item.bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket: {db_item.bucket.title}.",
+        )
+
+    if item_update.score is not None:
+        updated_ratings = [
+            (
+                {"username": current_user.username, "score": item_update.score}
+                if rating["username"] == current_user.username
+                else rating
+            )
+            for rating in db_item.ratings
+        ]
+        if not any(
+            rating["username"] == current_user.username for rating in db_item.ratings
+        ):
+            updated_ratings.append(
+                {"username": current_user.username, "score": item_update.score}
+            )
+        db_item.ratings = updated_ratings
+
     item_data = item_update.model_dump(exclude_unset=True)
+    item_data.pop("score", None)
     db_item.sqlmodel_update(item_data)
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
-    # return the list of the item type
-    bucket = db_session.query(Bucket).filter(Bucket.id == db_item.bucket_id).first()
-    items = [item for item in bucket.items if item.item_type == db_item.item_type]
+
+    # Return the list of items of the same type as the updated one
+    items = [
+        item for item in db_item.bucket.items if item.item_type == db_item.item_type
+    ]
     return items
 
 
