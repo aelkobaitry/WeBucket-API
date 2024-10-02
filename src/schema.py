@@ -100,10 +100,8 @@ class Item(SQLModel, table=True):
     updated_at: datetime = Field(default=datetime.now())
     bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
     bucket: Bucket = Relationship(back_populates="items")
-    ratings: list[dict[str, str | int]] = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
-    comments: list[dict[str, str]] = Field(default_factory=list, sa_column=Column(JSON))
+    ratings: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON))
+    comments: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
     complete: bool = Field(default=False)
 
 
@@ -122,6 +120,6 @@ class ItemUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
     location: str | None = None
-    score: int | None = None
+    score: float | None = None
     comment: str | None = None
     complete: bool | None = None

@@ -284,47 +284,23 @@ async def update_item(
         )
 
     if item_update.score is not None:
-        updated_ratings = [
-            (
-                {"username": current_user.username, "score": item_update.score}
-                if rating["username"] == current_user.username
-                else rating
-            )
-            for rating in db_item.ratings
-        ]
-        if not any(
-            rating["username"] == current_user.username for rating in db_item.ratings
-        ):
-            updated_ratings.append(
-                {"username": current_user.username, "score": item_update.score}
-            )
-        db_item.ratings = updated_ratings
+        new_ratings = db_item.ratings.copy()
+        new_ratings[current_user.username] = item_update.score
+        db_item.ratings = new_ratings
 
     if item_update.comment is not None:
-        updated_comments = [
-            (
-                {"username": current_user.username, "comment": item_update.comment}
-                if comment["username"] == current_user.username
-                else comment
-            )
-            for comment in db_item.comments
-        ]
-        if not any(
-            comment["username"] == current_user.username for comment in db_item.comments
-        ):
-            updated_comments.append(
-                {"username": current_user.username, "comment": item_update.comment}
-            )
-        db_item.comments = updated_comments
+        new_comments = db_item.comments.copy()
+        new_comments[current_user.username] = item_update.comment
+        db_item.comments = new_comments
 
     item_data = item_update.model_dump(exclude_unset=True)
     item_data.pop("score", None)
+    item_data.pop("comment", None)
     db_item.sqlmodel_update(item_data)
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
 
-    # Return the list of items of the same type as the updated one
     items = [
         item for item in db_item.bucket.items if item.item_type == db_item.item_type
     ]
