@@ -300,6 +300,23 @@ async def update_item(
             )
         db_item.ratings = updated_ratings
 
+    if item_update.comment is not None:
+        updated_comments = [
+            (
+                {"username": current_user.username, "comment": item_update.comment}
+                if comment["username"] == current_user.username
+                else comment
+            )
+            for comment in db_item.comments
+        ]
+        if not any(
+            comment["username"] == current_user.username for comment in db_item.comments
+        ):
+            updated_comments.append(
+                {"username": current_user.username, "comment": item_update.comment}
+            )
+        db_item.comments = updated_comments
+
     item_data = item_update.model_dump(exclude_unset=True)
     item_data.pop("score", None)
     db_item.sqlmodel_update(item_data)

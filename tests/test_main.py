@@ -396,6 +396,7 @@ def test_add_item_to_bucket_successfully(
     assert added_item.item_type == payload["item_type"]
     assert added_item.description is None
     assert added_item.ratings == []
+    assert added_item.comments == []
     assert added_item.complete is False
 
 
@@ -556,6 +557,66 @@ def test_update_item_new_rating_successfully(
     assert database_item.bucket_id == bucket.id
     assert database_item.description == payload["description"]
     assert database_item.ratings == [{"username": two_users[0].username, "score": 10}]
+
+
+def test_update_item_update_comment_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with updating a comment successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    payload = {"comment": "This is a new comment."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["comments"][0]["comment"] == payload["comment"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.comments == [
+        {"username": two_users[0].username, "comment": payload["comment"]}
+    ]
+
+
+def test_update_item_new_comment_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a new comment successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    item = session.query(Item).filter(Item.id == item_id).first()
+    item.comments = []
+    session.add(item)
+    session.commit()
+    payload = {"comment": "This is a new comment."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["comments"][0]["comment"] == payload["comment"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.comments == [
+        {"username": two_users[0].username, "comment": payload["comment"]}
+    ]
 
 
 def test_update_user_not_existing(

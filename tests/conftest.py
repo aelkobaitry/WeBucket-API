@@ -58,6 +58,7 @@ def add_two_users(session: Session) -> tuple[User, User]:
         bucket=bucket1,
         bucket_id=bucket1.id,
         ratings=[{"username": user1.username, "score": 5}],
+        comments=[{"username": user1.username, "comment": "Great activity"}],
     )
     session.add(item1)
     session.commit()

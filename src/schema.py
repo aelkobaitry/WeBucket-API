@@ -103,8 +103,7 @@ class Item(SQLModel, table=True):
     ratings: list[dict[str, str | int]] = Field(
         default_factory=list, sa_column=Column(JSON)
     )
-    comment_user1: str | None = Field(default=None)
-    comment_user2: str | None = Field(default=None)
+    comments: list[dict[str, str]] = Field(default_factory=list, sa_column=Column(JSON))
     complete: bool = Field(default=False)
 
 
@@ -124,6 +123,5 @@ class ItemUpdate(SQLModel):
     description: str | None = None
     location: str | None = None
     score: int | None = None
-    comment_user1: str | None = None
-    comment_user2: str | None = None
+    comment: str | None = None
     complete: bool | None = None
