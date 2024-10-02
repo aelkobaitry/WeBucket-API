@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 
 class UserBucketLink(SQLModel, table=True):
@@ -27,6 +27,16 @@ class User(SQLModel, table=True):
     buckets: list["Bucket"] = Relationship(
         back_populates="users", link_model=UserBucketLink
     )
+
+
+class CreateUser(SQLModel):
+    """A generic user model for creating."""
+
+    firstname: str
+    lastname: str
+    username: str
+    email: str
+    password: str
 
 
 class UserUpdate(SQLModel):
@@ -55,6 +65,13 @@ class Bucket(SQLModel, table=True):
     items: list["Item"] = Relationship(back_populates="bucket")
 
 
+class CreateBucket(SQLModel):
+    """A generic bucket model for creating."""
+
+    title: str
+    description: str
+
+
 class BucketUpdate(SQLModel):
     """A generic bucket model for updating."""
 
@@ -77,16 +94,26 @@ class Item(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str
     description: str | None = Field(default=None)
+    location: str | None = Field(default=None)
     item_type: ItemType
     created_at: datetime = Field(default=datetime.now())
     updated_at: datetime = Field(default=datetime.now())
     bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
     bucket: Bucket = Relationship(back_populates="items")
-    rating_user1: int = Field(default=5)
-    rating_user2: int = Field(default=5)
-    comment_user1: str | None = Field(default=None)
-    comment_user2: str | None = Field(default=None)
+    ratings: list[dict[str, str | int]] = Field(
+        default_factory=list, sa_column=Column(JSON)
+    )
+    comments: list[dict[str, str]] = Field(default_factory=list, sa_column=Column(JSON))
     complete: bool = Field(default=False)
+
+
+class CreateItem(SQLModel):
+    """A generic item model for creating."""
+
+    title: str
+    description: str | None = None
+    location: str | None = None
+    item_type: ItemType
 
 
 class ItemUpdate(SQLModel):
@@ -94,8 +121,7 @@ class ItemUpdate(SQLModel):
 
     title: str | None = None
     description: str | None = None
-    rating_user1: int | None = None
-    rating_user2: int | None = None
-    comment_user1: str | None = None
-    comment_user2: str | None = None
+    location: str | None = None
+    score: int | None = None
+    comment: str | None = None
     complete: bool | None = None
