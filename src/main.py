@@ -10,6 +10,7 @@ from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
 from src.schema import (
     Bucket,
+    BucketPublicWithUsers,
     BucketUpdate,
     CreateBucket,
     CreateItem,
@@ -70,7 +71,7 @@ async def unique_user(
     return {"username": username, "email": email}
 
 
-@app.post("/api/v1/add_user")
+@app.post("/api/v1/add_user", response_model=User)
 async def add_user(
     user: CreateUser,
     db_session: Session = Depends(get_db_session),
@@ -99,7 +100,7 @@ async def add_user(
     return new_user
 
 
-@app.post("/api/v1/create_bucket")
+@app.post("/api/v1/create_bucket", response_model=list[BucketPublicWithUsers])
 async def create_bucket(
     bucket: CreateBucket,
     db_session: Session = Depends(get_db_session),
@@ -129,7 +130,7 @@ async def create_bucket(
     return current_user.buckets
 
 
-@app.get("/api/v1/get_buckets_for_user")
+@app.get("/api/v1/get_buckets_for_user", response_model=list[BucketPublicWithUsers])
 async def get_buckets_for_user(
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
@@ -138,7 +139,7 @@ async def get_buckets_for_user(
     return current_user.buckets
 
 
-@app.patch("/api/v1/add_user_to_bucket/{bucket_id}")
+@app.patch("/api/v1/add_user_to_bucket/{bucket_id}", response_model=list[User])
 async def add_user_to_bucket(
     bucket_id: str,
     add_username: str,
@@ -195,7 +196,9 @@ async def get_bucket(
     return {"activity": activity, "media": media, "food": food, "bucket": bucket}
 
 
-@app.delete("/api/v1/delete_bucket/{bucket_id}")
+@app.delete(
+    "/api/v1/delete_bucket/{bucket_id}", response_model=list[BucketPublicWithUsers]
+)
 async def delete_bucket(
     bucket_id: str,
     db_session: Session = Depends(get_db_session),
@@ -353,7 +356,9 @@ async def update_user(
     return db_user
 
 
-@app.patch("/api/v1/update_bucket/{bucket_id}")
+@app.patch(
+    "/api/v1/update_bucket/{bucket_id}", response_model=list[BucketPublicWithUsers]
+)
 async def update_bucket(
     bucket_id: str,
     bucket_update: BucketUpdate,

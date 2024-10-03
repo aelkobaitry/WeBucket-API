@@ -49,6 +49,17 @@ class UserUpdate(SQLModel):
     lastname: str | None = None
 
 
+class UserPublic(SQLModel):
+    """A generic user model for public view."""
+
+    id: uuid.UUID
+    username: str
+    email: str
+    firstname: str
+    lastname: str
+    created_at: datetime
+
+
 class Bucket(SQLModel, table=True):
     """A generic Bucket model."""
 
@@ -78,6 +89,24 @@ class BucketUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
     bookmark: bool | None = None
+
+
+class BucketPublic(SQLModel):
+    """A generic bucket model for public view."""
+
+    id: uuid.UUID
+    title: str
+    description: str
+    bookmark: bool
+    created_at: datetime
+    updated_at: datetime
+    owner_id: uuid.UUID
+
+
+class BucketPublicWithUsers(BucketPublic):
+    """A generic bucket model for public view with users."""
+
+    users: list[UserPublic]
 
 
 class ItemType(str, Enum):

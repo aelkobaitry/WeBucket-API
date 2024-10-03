@@ -234,6 +234,7 @@ def test_get_buckets_for_user(
     assert data[0]["title"] == "First Bucket"
     assert data[0]["description"] == "Generic description"
     assert data[0]["owner_id"] == str(two_users[0].id)
+    assert len(data[0]["users"]) == 1
 
 
 def test_add_user_to_bucket(
@@ -762,6 +763,7 @@ def test_update_bucket_succesfully(
     assert data[0]["title"] == payload["title"]
     assert data[0]["description"] == payload["description"]
     assert data[0]["bookmark"] == payload["bookmark"]
+    assert len(data[0]["users"]) == 1
 
     database_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
     assert str(database_bucket.id) == data[0]["id"]
