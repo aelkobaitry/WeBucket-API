@@ -48,6 +48,28 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)) -
     return current_user
 
 
+@app.get("/api/v1/verify_unique_user")
+async def unique_user(
+    username: str,
+    email: str,
+    db_session: Session = Depends(get_db_session),
+) -> dict:
+    """Verify the username and email are not already in the system."""
+    user = db_session.query(User).filter(User.username == username).first()
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with username: {username} already exists.",
+        )
+    user = db_session.query(User).filter(User.email == email).first()
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email: {email} already exists.",
+        )
+    return {"username": username, "email": email}
+
+
 @app.post("/api/v1/add_user")
 async def add_user(
     user: CreateUser,

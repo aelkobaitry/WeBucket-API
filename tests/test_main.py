@@ -17,6 +17,57 @@ def test_ping(client: TestClient):
     assert data == {"ping": "pong"}
 
 
+def test_unique_users_sucess(client: TestClient, session: Session):
+    """Test that the user credentials are unique."""
+    # Arrange
+    payload = {
+        "username": "chewbacca",
+        "email": "chewy@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data == payload
+
+
+def test_uniqe_users_username_fail(client: TestClient, session: Session):
+    """Test that the user email is already in the db."""
+    # Arrange
+    payload = {
+        "username": "yoda",
+        "email": "chewy@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data == {"detail": "User with username: yoda already exists."}
+
+
+def test_uniqe_users_email_fail(client: TestClient, session: Session):
+    """Test that the username is already in the db."""
+    # Arrange
+    payload = {
+        "username": "chewbacca",
+        "email": "user2@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data == {"detail": "User with email: user2@example.com already exists."}
+
+
 def test_add_user_success(client: TestClient, session: Session):
     """Test the create user endpoint successfully."""
     # Arrange
