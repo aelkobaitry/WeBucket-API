@@ -49,6 +49,17 @@ class UserUpdate(SQLModel):
     lastname: str | None = None
 
 
+class UserPublic(SQLModel):
+    """A generic user model for public view."""
+
+    id: uuid.UUID
+    username: str
+    email: str
+    firstname: str
+    lastname: str
+    created_at: datetime
+
+
 class Bucket(SQLModel, table=True):
     """A generic Bucket model."""
 
@@ -80,6 +91,24 @@ class BucketUpdate(SQLModel):
     bookmark: bool | None = None
 
 
+class BucketPublic(SQLModel):
+    """A generic bucket model for public view."""
+
+    id: uuid.UUID
+    title: str
+    description: str
+    bookmark: bool
+    created_at: datetime
+    updated_at: datetime
+    owner_id: uuid.UUID
+
+
+class BucketPublicWithUsers(BucketPublic):
+    """A generic bucket model for public view with users."""
+
+    users: list[UserPublic]
+
+
 class ItemType(str, Enum):
     """A enum for item types."""
 
@@ -100,10 +129,8 @@ class Item(SQLModel, table=True):
     updated_at: datetime = Field(default=datetime.now())
     bucket_id: uuid.UUID = Field(foreign_key="bucket.id")
     bucket: Bucket = Relationship(back_populates="items")
-    ratings: list[dict[str, str | int]] = Field(
-        default_factory=list, sa_column=Column(JSON)
-    )
-    comments: list[dict[str, str]] = Field(default_factory=list, sa_column=Column(JSON))
+    ratings: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON))
+    comments: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
     complete: bool = Field(default=False)
 
 
@@ -122,6 +149,6 @@ class ItemUpdate(SQLModel):
     title: str | None = None
     description: str | None = None
     location: str | None = None
-    score: int | None = None
+    score: float | None = None
     comment: str | None = None
     complete: bool | None = None

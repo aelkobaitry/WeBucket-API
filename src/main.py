@@ -4,12 +4,14 @@ from datetime import datetime
 from typing import Dict
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.exc import StatementError
 from sqlmodel import Session
 
 from src.auth import get_current_active_user
 from src.config import app, get_db_session, init_db, pwd_context
 from src.schema import (
     Bucket,
+    BucketPublicWithUsers,
     BucketUpdate,
     CreateBucket,
     CreateItem,
@@ -48,7 +50,29 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)) -
     return current_user
 
 
-@app.post("/api/v1/add_user")
+@app.get("/api/v1/verify_unique_user")
+async def unique_user(
+    username: str,
+    email: str,
+    db_session: Session = Depends(get_db_session),
+) -> dict:
+    """Verify the username and email are not already in the system."""
+    user = db_session.query(User).filter(User.username == username).first()
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with username: {username} already exists.",
+        )
+    user = db_session.query(User).filter(User.email == email).first()
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with email: {email} already exists.",
+        )
+    return {"username": username, "email": email}
+
+
+@app.post("/api/v1/add_user", response_model=User)
 async def add_user(
     user: CreateUser,
     db_session: Session = Depends(get_db_session),
@@ -77,7 +101,7 @@ async def add_user(
     return new_user
 
 
-@app.post("/api/v1/create_bucket")
+@app.post("/api/v1/create_bucket", response_model=list[BucketPublicWithUsers])
 async def create_bucket(
     bucket: CreateBucket,
     db_session: Session = Depends(get_db_session),
@@ -107,7 +131,7 @@ async def create_bucket(
     return current_user.buckets
 
 
-@app.get("/api/v1/get_buckets_for_user")
+@app.get("/api/v1/get_buckets_for_user", response_model=list[BucketPublicWithUsers])
 async def get_buckets_for_user(
     db_session: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_active_user),
@@ -116,7 +140,7 @@ async def get_buckets_for_user(
     return current_user.buckets
 
 
-@app.patch("/api/v1/add_user_to_bucket/{bucket_id}")
+@app.patch("/api/v1/add_user_to_bucket/{bucket_id}", response_model=list[User])
 async def add_user_to_bucket(
     bucket_id: str,
     add_username: str,
@@ -154,12 +178,15 @@ async def get_bucket(
     current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """Get all bucket info by bucket id."""
-    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
-    if not bucket:
+    try:
+        bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+        if not bucket:
+            raise ValueError
+    except (ValueError, StatementError):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
-        )
+        ) from None
     if current_user not in bucket.users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -173,7 +200,9 @@ async def get_bucket(
     return {"activity": activity, "media": media, "food": food, "bucket": bucket}
 
 
-@app.delete("/api/v1/delete_bucket/{bucket_id}")
+@app.delete(
+    "/api/v1/delete_bucket/{bucket_id}", response_model=list[BucketPublicWithUsers]
+)
 async def delete_bucket(
     bucket_id: str,
     db_session: Session = Depends(get_db_session),
@@ -284,47 +313,23 @@ async def update_item(
         )
 
     if item_update.score is not None:
-        updated_ratings = [
-            (
-                {"username": current_user.username, "score": item_update.score}
-                if rating["username"] == current_user.username
-                else rating
-            )
-            for rating in db_item.ratings
-        ]
-        if not any(
-            rating["username"] == current_user.username for rating in db_item.ratings
-        ):
-            updated_ratings.append(
-                {"username": current_user.username, "score": item_update.score}
-            )
-        db_item.ratings = updated_ratings
+        new_ratings = db_item.ratings.copy()
+        new_ratings[current_user.username] = item_update.score
+        db_item.ratings = new_ratings
 
     if item_update.comment is not None:
-        updated_comments = [
-            (
-                {"username": current_user.username, "comment": item_update.comment}
-                if comment["username"] == current_user.username
-                else comment
-            )
-            for comment in db_item.comments
-        ]
-        if not any(
-            comment["username"] == current_user.username for comment in db_item.comments
-        ):
-            updated_comments.append(
-                {"username": current_user.username, "comment": item_update.comment}
-            )
-        db_item.comments = updated_comments
+        new_comments = db_item.comments.copy()
+        new_comments[current_user.username] = item_update.comment
+        db_item.comments = new_comments
 
     item_data = item_update.model_dump(exclude_unset=True)
     item_data.pop("score", None)
+    item_data.pop("comment", None)
     db_item.sqlmodel_update(item_data)
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
 
-    # Return the list of items of the same type as the updated one
     items = [
         item for item in db_item.bucket.items if item.item_type == db_item.item_type
     ]
@@ -355,7 +360,9 @@ async def update_user(
     return db_user
 
 
-@app.patch("/api/v1/update_bucket/{bucket_id}")
+@app.patch(
+    "/api/v1/update_bucket/{bucket_id}", response_model=list[BucketPublicWithUsers]
+)
 async def update_bucket(
     bucket_id: str,
     bucket_update: BucketUpdate,
