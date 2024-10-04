@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Dict
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.exc import StatementError
 from sqlmodel import Session
 
 from src.auth import get_current_active_user
@@ -177,12 +178,15 @@ async def get_bucket(
     current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """Get all bucket info by bucket id."""
-    bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
-    if not bucket:
+    try:
+        bucket = db_session.query(Bucket).filter(Bucket.id == bucket_id).first()
+        if not bucket:
+            raise ValueError
+    except (ValueError, StatementError):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
-        )
+        ) from None
     if current_user not in bucket.users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
