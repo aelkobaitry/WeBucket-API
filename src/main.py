@@ -171,7 +171,10 @@ async def add_user_to_bucket(
     return bucket.users
 
 
-@app.get("/api/v1/bucket/{bucket_id}")
+@app.get(
+    "/api/v1/bucket/{bucket_id}",
+    response_model=dict[str, list[Item] | BucketPublicWithUsers],
+)
 async def get_bucket(
     bucket_id: str,
     db_session: Session = Depends(get_db_session),
