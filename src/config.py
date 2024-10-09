@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-config = {"database": {"url": "sqlite:///database_service/db.sqlite"}}
+config = {"database": {"url": "sqlite:///db.sqlite"}}
 
 engine = create_engine(
     config["database"]["url"], echo=True, connect_args={"check_same_thread": False}
