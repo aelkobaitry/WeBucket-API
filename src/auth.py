@@ -9,12 +9,9 @@ from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from src.config import app, get_db_session, pwd_context
+from src.config import algorithm, app, get_db_session, pwd_context, secret_key
 from src.schema import User
 
-# openssl rand -hex 32
-SECRET_KEY = "45781253ad135938709c470a6b1f19a899965d6861fa05b5f15018c27780f310"
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 45
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -45,7 +42,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 
@@ -59,7 +56,7 @@ async def get_current_active_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
