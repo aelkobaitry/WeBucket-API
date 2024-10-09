@@ -155,6 +155,11 @@ async def add_user_to_bucket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
         )
+    if current_user not in bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket with id: {bucket_id}.",
+        )
     if not add_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -193,7 +198,7 @@ async def get_bucket(
     if current_user not in bucket.users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"User: {current_user.username} not in bucket: {bucket.title}.",
+            detail=f"User: {current_user.username} not in bucket with id: {bucket_id}.",
         )
 
     activity = [item for item in bucket.items if item.item_type == ItemType.activity]
@@ -217,6 +222,11 @@ async def delete_bucket(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
+        )
+    if current_user not in bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket with id: {bucket_id}.",
         )
     if bucket.owner_id != current_user.id:
         raise HTTPException(
@@ -353,6 +363,11 @@ async def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with id: {user_id} not found.",
         )
+    if current_user.id != db_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not authorized to update user: {db_user.username}.",
+        )
     user_data = user_update.model_dump(exclude_unset=True)
     if "password" in user_data:
         user_data["hashed_password"] = pwd_context.hash(user_data.pop("password"))
@@ -378,6 +393,11 @@ async def update_bucket(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Bucket with id: {bucket_id} not found.",
+        )
+    if current_user not in db_bucket.users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"User: {current_user.username} not in bucket with id: {bucket_id}.",
         )
     bucket_data = bucket_update.model_dump(exclude_unset=True)
     db_bucket.sqlmodel_update(bucket_data)

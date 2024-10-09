@@ -1,9 +1,17 @@
 """Configuration for the project."""
 
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 from sqlmodel import Session, SQLModel, create_engine
+
+load_dotenv()
+secret_key = os.getenv("SECRET_KEY")
+algorithm = os.getenv("ALGORITHM")
+origins = os.getenv("CORS_ORIGINS")
 
 
 class Settings:
@@ -15,20 +23,15 @@ class Settings:
 
 app = FastAPI(title=Settings.PROJECT_NAME, version=Settings.PROJECT_VERSION)
 
-origins = [
-    "http://localhost:5173",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-config = {"database": {"url": "sqlite:///database_service/db.sqlite"}}
+config = {"database": {"url": "sqlite:///db.sqlite"}}
 
 engine = create_engine(
     config["database"]["url"], echo=True, connect_args={"check_same_thread": False}
