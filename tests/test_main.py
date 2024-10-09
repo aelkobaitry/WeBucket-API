@@ -4,7 +4,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from src.schema import Checklist, User
+from src.schema import Bucket, Item, ItemType, User
 
 
 def test_ping(client: TestClient):
@@ -17,21 +17,76 @@ def test_ping(client: TestClient):
     assert data == {"ping": "pong"}
 
 
+def test_unique_users_sucess(client: TestClient, session: Session):
+    """Test that the user credentials are unique."""
+    # Arrange
+    payload = {
+        "username": "chewbacca",
+        "email": "chewy@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data == payload
+
+
+def test_uniqe_users_username_fail(client: TestClient, session: Session):
+    """Test that the user email is already in the db."""
+    # Arrange
+    payload = {
+        "username": "yoda",
+        "email": "chewy@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data == {"detail": "User with username: yoda already exists."}
+
+
+def test_uniqe_users_email_fail(client: TestClient, session: Session):
+    """Test that the username is already in the db."""
+    # Arrange
+    payload = {
+        "username": "chewbacca",
+        "email": "user2@example.com",
+    }
+
+    # Act
+    response = client.get("/api/v1/verify_unique_user", params=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data == {"detail": "User with email: user2@example.com already exists."}
+
+
 def test_add_user_success(client: TestClient, session: Session):
     """Test the create user endpoint successfully."""
     # Arrange
     payload = {
+        "firstname": "Chew",
+        "lastname": "Bacca",
         "username": "chewbacca",
         "email": "chewy@example.com",
         "password": "password123",
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
+    assert data["firstname"] == payload["firstname"]
+    assert data["lastname"] == payload["lastname"]
     assert data["username"] == payload["username"]
     assert data["email"] == payload["email"]
     assert data["id"] is not None
@@ -44,6 +99,8 @@ def test_add_user_success(client: TestClient, session: Session):
         session.query(User).filter(User.username == payload["username"]).first()
     )
     assert str(added_user.id) == data["id"]
+    assert added_user.firstname == payload["firstname"]
+    assert added_user.lastname == payload["lastname"]
     assert added_user.username == payload["username"]
     assert added_user.email == payload["email"]
     assert added_user.hashed_password is not None
@@ -53,13 +110,15 @@ def test_add_user_same_username(client: TestClient, session: Session):
     """Test the create user endpoint with a previously used username."""
     # Arrange
     payload = {
+        "firstname": "Yoda",
+        "lastname": "Master",
         "username": "yoda",
         "email": "notuser@example.com",
         "password": "password123",
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
@@ -75,13 +134,15 @@ def test_add_user_same_email(client: TestClient, two_users: tuple[User, User]):
     """Test the create user endpoint with a previously used email."""
     # Arrange
     payload = {
+        "firstname": "Not",
+        "lastname": "Yoda",
         "username": "notyoda",
         "email": "user@example.com",
         "password": "password123",
     }
 
     # Act
-    response = client.post("/api/v1/add_user", params=payload)
+    response = client.post("/api/v1/add_user", json=payload)
     data = response.json()
 
     # Assert
@@ -89,231 +150,625 @@ def test_add_user_same_email(client: TestClient, two_users: tuple[User, User]):
     assert data["detail"] == f"User with email: {payload['email']} already exists."
 
 
-def test_add_checklist_success(
+def test_add_bucket_success(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the create checklist endpoint successfully."""
+    """Test the create bucket endpoint successfully."""
     # Arrange
-    payload = {"title": "My Checklist", "description": "A general description."}
+    payload = {
+        "title": "My Bucket",
+        "description": "A general description.",
+    }
 
     # Act
-    response = client.post("/api/v1/create_checklist", params=payload)
+    response = client.post("/api/v1/create_bucket", json=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    print(data)
-    assert data["title"] == payload["title"]
-    assert data["description"] == payload["description"]
-    assert data["id"] is not None
-    assert data["owner_id"] == str(two_users[0].id)
+    assert len(data) == 2
+    assert data[1]["title"] == payload["title"]
+    assert data[1]["description"] == payload["description"]
+    assert data[1]["id"] is not None
+    assert data[1]["owner_id"] == str(two_users[0].id)
 
-    assert len(two_users[0].checklists) == 2
+    assert len(two_users[0].buckets) == 2
 
-    added_checklist = (
-        session.query(Checklist).filter(Checklist.id == data["id"]).first()
-    )
-    assert str(added_checklist.id) == data["id"]
-    assert added_checklist.title == payload["title"]
-    assert added_checklist.description == payload["description"]
-    assert added_checklist.owner_id == two_users[0].id
-    assert str(added_checklist.owner_id) == data["owner_id"]
+    added_bucket = session.query(Bucket).filter(Bucket.id == data[1]["id"]).first()
+    assert str(added_bucket.id) == data[1]["id"]
+    assert added_bucket.title == payload["title"]
+    assert added_bucket.description == payload["description"]
+    assert added_bucket.owner_id == two_users[0].id
+    assert str(added_bucket.owner_id) == data[1]["owner_id"]
 
 
-def test_get_checklists_for_user(
+def test_add_bucket_empty_title(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the get checklists for user endpoint successfully."""
+    """Test the create bucket endpoint with an empty title."""
+    # Arrange
+    payload = {
+        "title": "",
+        "description": "A general description.",
+    }
+
     # Act
-    response = client.get("/api/v1/get_checklists_for_user")
+    response = client.post("/api/v1/create_bucket", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data["detail"] == "Bucket title cannot be empty."
+
+
+def test_add_bucket_long_title(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the create bucket endpoint with a long title."""
+    # Arrange
+    payload = {
+        "title": "A" * 51,
+        "description": "A general description.",
+    }
+
+    # Act
+    response = client.post("/api/v1/create_bucket", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert data["detail"] == "Bucket title cannot exceed 50 characters."
+
+
+def test_get_buckets_for_user(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the get buckets for user endpoint successfully."""
+    # Act
+    response = client.get("/api/v1/get_buckets_for_user")
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert len(data) == 1
-    assert data[0]["title"] == "First Checklist"
+    assert data[0]["title"] == "First Bucket"
     assert data[0]["description"] == "Generic description"
     assert data[0]["owner_id"] == str(two_users[0].id)
+    assert len(data[0]["users"]) == 1
 
 
-def test_add_user_to_checklist(
+def test_add_user_to_bucket(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add user to checklist endpoint successfully."""
+    """Test the add user to bucket endpoint successfully."""
     # Arrange
-    checklist_id = two_users[0].checklists[0].id
-    payload = {"checklist_id": checklist_id, "add_user_id": two_users[1].id}
+    bucket_id = two_users[0].buckets[0].id
+    payload = {"add_username": two_users[1].username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["id"] == str(checklist_id)
+    assert len(data) == 2
+    assert str(two_users[0].username), str(two_users[1].username) in [
+        user["username"] for user in data
+    ]
 
-    checklist = session.query(Checklist).filter(Checklist.id == checklist_id).first()
-    assert len(checklist.users) == 2
-    assert two_users[0].id, two_users[1].id in [user.id for user in checklist.users]
+    bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    assert len(bucket.users) == 2
+    assert two_users[0].username, two_users[1].username in [
+        user.username for user in bucket.users
+    ]
 
-    assert len(two_users[0].checklists) == 1
-    assert len(two_users[1].checklists) == 1
+    assert len(two_users[0].buckets) == 1
+    assert len(two_users[1].buckets) == 1
 
 
-def test_add_user_checklist_not_existing(
+def test_add_user_bucket_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add user to checklist endpoint with a non-existing checklist."""
+    """Test the add user to bucket endpoint with a non-existing bucket."""
     # Arrange
-    checklist_id = "12345678-1234-1234-1234-123456789abc"
-    payload = {"checklist_id": checklist_id, "add_user_id": str(two_users[1].id)}
+    bucket_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"add_username": str(two_users[1].username)}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+    assert data["detail"] == f"Bucket with id: {bucket_id} not found."
 
 
 def test_add_user_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add user to checklist endpoint with a non-existing user."""
+    """Test the add user to bucket endpoint with a non-existing user."""
     # Arrange
-    checklist_id = two_users[0].checklists[0].id
-    bad_user_id = "12345678-1234-1234-1234-123456789abc"
-    payload = {"checklist_id": checklist_id, "add_user_id": bad_user_id}
+    bucket_id = two_users[0].buckets[0].id
+    bad_username = "thisusernamedoesnotexist"
+    payload = {"add_username": bad_username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == f"User with id: {bad_user_id} not found."
+    assert data["detail"] == f"User with username: {bad_username} not found."
 
 
-def test_add_user_to_checklist_already_added(
+def test_add_user_to_bucket_already_added(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add user to checklist endpoint with a user already added."""
+    """Test the add user to bucket endpoint with a user already added."""
     # Arrange
-    checklist_id = two_users[0].checklists[0].id
-    payload = {"checklist_id": checklist_id, "add_user_id": two_users[0].id}
+    bucket_id = two_users[0].buckets[0].id
+    payload = {"add_username": two_users[0].username}
 
     # Act
-    response = client.patch("/api/v1/add_user_to_checklist", params=payload)
+    response = client.patch(f"/api/v1/add_user_to_bucket/{bucket_id}", params=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
     assert (
         data["detail"]
-        == f"Username: {two_users[0].username} already in checklist: {two_users[0].checklists[0].title}."
+        == f"Username: {two_users[0].username} already in bucket: {two_users[0].buckets[0].title}."
     )
 
 
-def test_get_checklist_successfully(
+def test_get_bucket_successfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the get checklist endpoint successfully."""
+    """Test the get bucket endpoint successfully."""
     # Arrange
-    checklist_id = two_users[0].checklists[0].id
+    bucket_id = two_users[0].buckets[0].id
+
+    item1 = Item(
+        title="firstItem",
+        description="testing first item",
+        item_type=ItemType.activity,
+        bucket_id=bucket_id,
+    )
+
+    item2 = Item(
+        title="secondItem",
+        description="testing second item",
+        item_type=ItemType.media,
+        bucket_id=bucket_id,
+    )
+
+    item3 = Item(
+        title="thirdItem",
+        description="testing third item",
+        item_type=ItemType.food,
+        bucket_id=bucket_id,
+    )
+    session.add_all([item1, item2, item3])
+    session.commit()
 
     # Act
-    response = client.get(f"/api/v1/checklist/{checklist_id}")
+    response = client.get(f"/api/v1/bucket/{bucket_id}")
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["title"] == "First Checklist"
-    assert data["description"] == "Generic description"
-    assert data["owner_id"] == str(two_users[0].id)
+    assert data["bucket"]["title"] == "First Bucket"
+    assert data["bucket"]["description"] == "Generic description"
+    assert data["bucket"]["owner_id"] == str(two_users[0].id)
+    assert len(data["activity"]) == 2
+    assert len(data["media"]) == 1
+    assert len(data["food"]) == 1
 
 
-def test_get_checklist_not_existing(
+def test_get_bucket_not_existing(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the get checklist endpoint with a non-existing checklist."""
+    """Test the get bucket endpoint with a non-existing bucket."""
     # Arrange
-    checklist_id = "12345678-1234-1234-1234-123456789abc"
+    bucket_id = "12345678-1234-1234-1234-123456789abc"
 
     # Act
-    response = client.get(f"/api/v1/checklist/{checklist_id}")
+    response = client.get(f"/api/v1/bucket/{bucket_id}")
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+    assert data["detail"] == f"Bucket with id: {bucket_id} not found."
 
 
-def test_add_item_to_checklist_successfully(
+def test_delete_bucket_successfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add item to checklist endpoint successfully."""
+    """Test the delete bucket endpoint successfully."""
     # Arrange
-    checklist_id = str(two_users[0].checklists[0].id)
-    payload = {"checklist_id": checklist_id, "title": "First Item"}
+    bucket_id = two_users[0].buckets[0].id
+    item_id = two_users[0].buckets[0].items[0].id
 
     # Act
-    response = client.post("/api/v1/add_item_to_checklist", params=payload)
+    response = client.delete(f"/api/v1/delete_bucket/{bucket_id}")
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
-    assert data["title"] == "First Item"
-    assert data["checklist_id"] == checklist_id
-    assert data["description"] is None
-    assert data["rating_user1"] == 5
-    assert data["rating_user2"] == 5
-    assert data["complete"] is False
+    assert len(data) == 0
+
+    bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    assert bucket is None
+    item = session.query(Item).filter(Item.id == item_id).first()
+    assert item is None
 
 
-def test_add_item_to_checklist_not_existing(
+def test_delete_bucket_not_exist(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the add item to checklist endpoint with a non-existing checklist."""
+    """Test the delete bucket endpoint where bucket does not exist."""
     # Arrange
-    checklist_id = "12345678-1234-1234-1234-123456789abc"
-    payload = {"checklist_id": checklist_id, "title": "First Item"}
-
+    bucket_id = "12345678-1234-1234-1234-123456789abc"
     # Act
-    response = client.post("/api/v1/add_item_to_checklist", params=payload)
+    response = client.delete(f"/api/v1/delete_bucket/{bucket_id}")
     data = response.json()
-
     # Assert
     assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert data["detail"] == f"Checklist with id: {checklist_id} not found."
+    assert data["detail"] == f"Bucket with id: {bucket_id} not found."
 
 
-def test_get_items_in_checklist_successfully(
+def test_add_item_to_bucket_successfully(
     client: TestClient, session: Session, two_users: tuple[User, User]
 ):
-    """Test the get items in checklist endpoint successfully."""
+    """Test the add item to bucket endpoint successfully."""
     # Arrange
-    checklist_id = two_users[0].checklists[0].id
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "First Item"},
-    )
-    client.post(
-        "/api/v1/add_item_to_checklist",
-        params={"checklist_id": checklist_id, "title": "Second Item"},
-    )
-    payload = {"checklist_id": checklist_id}
+    bucket_id = str(two_users[0].buckets[0].id)
+    payload = {"title": "First Item", "item_type": "activity"}
 
     # Act
-    response = client.get("/api/v1/get_items_for_checklist", params=payload)
+    response = client.post(f"/api/v1/add_item_to_bucket/{bucket_id}", json=payload)
     data = response.json()
 
     # Assert
     assert response.status_code == status.HTTP_200_OK
     assert len(data) == 2
-    assert data[0]["title"] == "First Item"
-    assert data[0]["checklist_id"] == str(checklist_id)
-    assert data[0]["description"] is None
-    assert data[0]["rating_user1"] == 5
-    assert data[0]["rating_user2"] == 5
-    assert data[0]["complete"] is False
+    assert data[1]["title"] == payload["title"]
+    assert data[1]["bucket_id"] == bucket_id
+    assert data[1]["item_type"] == payload["item_type"]
+    assert data[1]["description"] is None
+    assert data[1]["complete"] is False
+
+    added_item = session.query(Item).filter(Item.id == data[1]["id"]).first()
+    updated_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    assert len(updated_bucket.items) == len(data)
+    assert added_item is not None
+    assert str(added_item.id) == data[1]["id"]
+    assert added_item.title == payload["title"]
+    assert str(added_item.bucket_id) == bucket_id
+    assert added_item.item_type == payload["item_type"]
+    assert added_item.description is None
+    assert added_item.ratings == {}
+    assert added_item.comments == {}
+    assert added_item.complete is False
+
+
+def test_add_item_to_bucket_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the add item to bucket endpoint with a non-existing bucket."""
+    # Arrange
+    bucket_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"title": "First Item", "item_type": "activity"}
+
+    # Act
+    response = client.post(f"/api/v1/add_item_to_bucket/{bucket_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Bucket with id: {bucket_id} not found."
+
+
+def test_delete_item_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the delete item endpoint successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+
+    # Act
+    response = client.delete(f"/api/v1/delete_item/{item_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert len(data) == 0
+
+    item = session.query(Item).filter(Item.id == item_id).first()
+    assert item is None
+
+    updated_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(updated_bucket.items) == 0
+
+
+def test_delete_item_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test the delete item endpoint with a non-existing item."""
+    # Arrange
+    item_id = "12345678-1234-1234-1234-123456789abc"
+
+    # Act
+    response = client.delete(f"/api/v1/delete_item/{item_id}")
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Item with id: {item_id} not found."
+
+
+def test_update_item_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a non-existing item."""
+    # Arrange
+    item_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Item with id: {item_id} not found."
+
+
+def test_update_item_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    payload = {"title": "First item change", "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["title"] == payload["title"]
+    assert data[0]["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.title == payload["title"]
+    assert database_item.description == payload["description"]
+    assert database_item.bucket_id == bucket.id
+
+
+def test_update_item_update_rating_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with updating a rating successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    payload = {"score": 2, "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.description == payload["description"]
+    assert database_item.ratings == {two_users[0].username: payload["score"]}
+
+
+def test_update_item_new_rating_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a new rating successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    item = session.query(Item).filter(Item.id == item_id).first()
+    item.ratings = {}
+    session.add(item)
+    session.commit()
+    payload = {"score": 10, "description": "changing the description."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["description"] == payload["description"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.description == payload["description"]
+    assert database_item.ratings == {two_users[0].username: payload["score"]}
+
+
+def test_update_item_update_comment_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with updating a comment successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    payload = {"comment": "This is a new comment."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["comments"][two_users[0].username] == payload["comment"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.comments == {two_users[0].username: payload["comment"]}
+
+
+def test_update_item_new_comment_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update item endpoint with a new comment successfully."""
+    # Arrange
+    bucket = two_users[0].buckets[0]
+    item_id = str(two_users[0].buckets[0].items[0].id)
+    item = session.query(Item).filter(Item.id == item_id).first()
+    item.comments = {}
+    session.add(item)
+    session.commit()
+    payload = {"comment": "This is a new comment."}
+
+    # Act
+    response = client.patch(f"/api/v1/update_item/{item_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == str(item_id)
+    assert data[0]["comments"][two_users[0].username] == payload["comment"]
+
+    database_item = session.query(Item).filter(Item.id == item_id).first()
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket.id).first()
+    assert len(data) == len(database_bucket.items)
+    assert str(database_item.id) == data[0]["id"]
+    assert database_item.bucket_id == bucket.id
+    assert database_item.comments == {two_users[0].username: payload["comment"]}
+
+
+def test_update_user_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update user endpoint with a non-existing user."""
+    # Arrange
+    user_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {"username": "nonexistent_user", "email": "nonexistent_user@example.com"}
+
+    # Act
+    response = client.patch(f"/api/v1/update_user/{user_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"User with id: {user_id} not found."
+
+
+def test_update_user_successfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update user endpoint successfully."""
+    # Arrange
+    user_id = str(two_users[0].id)
+    payload = {
+        "firstname": "Updated",
+        "lastname": "Yoda",
+        "username": "updated_yoda",
+        "email": "updated_yoda@example.com",
+        "hashed_password": "newpassword123",
+    }
+
+    # Act
+    response = client.patch(f"/api/v1/update_user/{user_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data["id"] == user_id
+    assert data["firstname"] == payload["firstname"]
+    assert data["lastname"] == payload["lastname"]
+    assert data["username"] == payload["username"]
+    assert data["email"] == payload["email"]
+    assert data["hashed_password"] is not None
+
+    database_user = session.query(User).filter(User.id == user_id).first()
+    assert str(database_user.id) == data["id"]
+    assert database_user.firstname == payload["firstname"]
+    assert database_user.lastname == payload["lastname"]
+    assert database_user.username == payload["username"]
+    assert database_user.email == payload["email"]
+    assert database_user.hashed_password is not None
+
+
+def test_update_bucket_not_existing(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update bucket endpoint with a non-existing bucket."""
+    # Arrange
+    bucket_id = "12345678-1234-1234-1234-123456789abc"
+    payload = {
+        "title": "Nonexistent Bucket Title",
+        "description": "Trying to update a non-existent bucket.",
+    }
+
+    # Act
+    response = client.patch(f"/api/v1/update_bucket/{bucket_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert data["detail"] == f"Bucket with id: {bucket_id} not found."
+
+
+def test_update_bucket_succesfully(
+    client: TestClient, session: Session, two_users: tuple[User, User]
+):
+    """Test update bucket endpoint successfully."""
+    # Arrange
+    bucket_id = str(two_users[0].buckets[0].id)
+    original_updated_at = two_users[0].buckets[0].updated_at
+    payload = {
+        "title": "Updated Bucket Title",
+        "description": "Updated description of the bucket.",
+        "bookmark": True,
+    }
+
+    # Act
+    response = client.patch(f"/api/v1/update_bucket/{bucket_id}", json=payload)
+    data = response.json()
+
+    # Assert
+    assert response.status_code == status.HTTP_200_OK
+    assert data[0]["id"] == bucket_id
+    assert data[0]["title"] == payload["title"]
+    assert data[0]["description"] == payload["description"]
+    assert data[0]["bookmark"] == payload["bookmark"]
+    assert len(data[0]["users"]) == 1
+
+    database_bucket = session.query(Bucket).filter(Bucket.id == bucket_id).first()
+    assert str(database_bucket.id) == data[0]["id"]
+    assert database_bucket.title == payload["title"]
+    assert database_bucket.description == payload["description"]
+    assert database_bucket.bookmark == payload["bookmark"]
+    assert database_bucket.updated_at > original_updated_at
+    assert database_bucket.owner_id == two_users[0].id
